@@ -218,9 +218,9 @@ function ring(){
 function vStart(){
   const c=current(), w=WEEKS[c.w-1], name=get('me|naam');
   let head, action='';
-  if(c.state==='before'){const dd=-c.i; head=`<div class="mono">De run start op ${fmt(START)}</div><h1>Nog ${dd} ${dd===1?'dag':'dagen'}</h1>`}
-  else if(c.state==='after'){head=`<div class="mono">Dag 90</div><h1>Dit heb jij gebouwd</h1>`}
-  else head=`<div class="mono">${DOW[(c.i%7)]} ${fmt(addDays(START,c.i))} · week ${c.w} · ${h(w.ph)}</div><h1>${h(w.title)}</h1>`;
+  if(c.state==='before'){const dd=-c.i; head=`<div class="kick">De run start op ${fmt(START)}</div><h1>Nog ${dd} ${dd===1?'dag':'dagen'}</h1>`}
+  else if(c.state==='after'){head=`<div class="kick">Dag 90</div><h1>Dit heb jij gebouwd</h1>`}
+  else head=`<div class="kick">${DOW[(c.i%7)]} ${fmt(addDays(START,c.i))} · week ${c.w} · ${h(w.ph)}</div><h1>${h(w.title)}</h1>`;
   if(c.state==='run'){
     if(c.w===8) action=`<a class="today" href="#week-8" style="text-decoration:none"><span class="box" style="border-color:var(--accent)"></span><span><b>Inhaalweek.</b><br><span class="muted">Haal in wat bleef liggen, of laad op voor de tweede helft.</span></span></a>`;
     else{const k=`w${c.w}|d${c.d}`; action=`<button class="today" id="todaybtn" data-day="${k}" aria-pressed="${get(k)?'true':'false'}"><span class="box">✓</span><span><b id="todaylab">${get(k)?'Vandaag gedaan':'Vandaag afvinken'}</b><br><span class="muted">${h(w.gew)}</span></span></button>`}}
@@ -232,7 +232,7 @@ function statsHtml(){return `<div><span class="mono">Gewoonte-dagen</span><b>${t
 
 function vReis(){
   const phases=[['Fundament','Jezelf: je houding, je rust en je respect voor de keuze van de ander.',[1,2,3,4]],['Zichtbaarheid','Gesprekken starten en echt begrijpen.',[5,6,7,8,9]],['Uitnodigen','Durven vragen, twijfel onderzoeken en opvolgen tot de lus gesloten is.',[10,11,12,13]]];
-  return `<div class="sec"><div><div class="mono">13 weken · één route</div><h1>De reis</h1></div>`+phases.map(([p,d,ws])=>`<section class="phase"><div class="sechead"><h2>${p}</h2><span class="muted">${d}</span></div>${ws.map(n=>{const w=WEEKS[n-1],c=wd(n),r=n===8;
+  return `<div class="sec"><div><div class="kick">13 weken · één route</div><h1>De reis</h1></div>`+phases.map(([p,d,ws])=>`<section class="phase"><div class="sechead"><h2>${p}</h2><span class="muted">${d}</span></div>${ws.map(n=>{const w=WEEKS[n-1],c=wd(n),r=n===8;
     return `<a class="wk ${r?'rest':''}" href="#week-${n}"><span class="n">${String(n).padStart(2,'0')}</span><span><span class="t">${h(w.title)}</span><br><span class="mono">${weekRange(n)}${get(`w${n}|done`)?' · afgerond':''}</span></span>${r?`<span class="pill">Kerst</span>`:`<span class="track" title="${c} van 7 dagen"><i style="width:${c/7*100}%"></i></span>`}</a>${EVALS[n]?`<a class="pill evmark ${get('ev'+EVALS[n].d+'|score')?'on':''}" href="#week-${n}-evaluatie" data-ev="1">Dag ${EVALS[n].d} · evaluatie</a>`:''}`}).join('')}</section>`).join('')+
   `<section class="phase"><div class="sechead"><h2>Bonus</h2><span class="muted">Wanneer nodig</span></div><a class="wk" href="#bonus"><span class="n">+</span><span><span class="t">Het brand partner-gesprek</span><br><span class="mono">Business</span></span><span></span></a></section></div>`}
 
@@ -261,7 +261,7 @@ function vWeek(n){
   const fi=FI[n]||[], oef=fi.filter(f=>f.p==='oef'), opdr=fi.filter(f=>f.p==='opdr');
   const slides=CANVA.deck[w.mod];
   let o=`<article class="sec" style="gap:40px">`;
-  o+=`<header class="wkhead"><div class="row"><span class="pill on">${h(w.ph)}</span><span class="pill">Week ${n} · ${weekRange(n)}</span><span class="pill">Training ${String(w.mod).padStart(2,'0')}</span></div><h1>${h(w.title)}.</h1><p class="muted" style="font-size:1.1rem">${h(w.sub)}</p></header>`;
+  o+=`<header class="wkhead"><div class="kick">Sales Foundations 90 · Week ${String(n).padStart(2,'0')} / 13 · ${h(w.ph)}</div><h1>${h(w.title)}.</h1><p style="font-size:1.15rem;margin:0">${h(w.sub)}</p><div class="row"><span class="pill">Week ${n} · ${weekRange(n)}</span><span class="pill">Training ${String(w.mod).padStart(2,'0')}</span></div></header>`;
   o+=`<section class="sec"><div class="sechead"><h2>De training</h2><span class="mono">Maandag · live</span></div>${m?`<p style="font-size:1.12rem"><b>${h(m.thesis)}</b></p>`:''}
    <div class="row"><a class="btn" href="${slides}" target="_blank" rel="noopener">Open de presentatie</a><a class="btn ghost" href="${CANVA.boek}" target="_blank" rel="noopener">Cursusboek · hoofdstuk ${w.mod}</a></div>
    ${m?`<div class="cols2"><div><div class="mono" style="margin-bottom:8px">Na deze training kun je</div><ul class="list">${m.goals.map(g=>`<li>${h(g.replace(/;$|\.$/,''))}</li>`).join('')}</ul></div><div><div class="mono" style="margin-bottom:8px">Kernpunten</div><ul class="list">${m.kern.map(g=>`<li>${h(g)}</li>`).join('')}</ul></div></div>
@@ -281,7 +281,7 @@ function vBonus(){return `<article class="sec" style="gap:40px"><header class="w
   <section class="sec"><div class="sechead"><h2>Opdracht</h2></div><p>${h(BONUS.opdr)}</p>${fiche('bonus',BONUS.fi[1])}</section></article>`}
 
 function vMijn(){const mode=get('me|mode')||'full';
-  return `<div class="sec" style="gap:28px"><div><div class="mono">Sales Foundations 90 · my vision</div><h1>Mijn 90 dagen</h1></div>
+  return `<div class="sec" style="gap:28px"><div><div class="kick">Sales Foundations 90 · my vision</div><h1>Mijn 90 dagen</h1></div>
   <div class="f"><label class="lb" for="f_me_naam">Dit boek is van</label><input type="text" id="f_me_naam" data-k="me|naam" value="${h(get('me|naam')||'')}" autocomplete="name"></div>
   ${text('me|doel','Mijn doel: wat wil jij anders zien op dag 90?',3)}${text('me|waarom','Waarom dit belangrijk is voor mij',3)}
   <div class="f" role="radiogroup" aria-label="Ik kies"><span class="lb">Ik kies</span><div class="cols2">
@@ -300,7 +300,7 @@ function chart(){
   return `<div class="chartwrap"><svg class="chart" viewBox="0 0 ${x0+13*(bw+gap)+10} ${top+H+26}" role="img" aria-label="Aantal afgevinkte dagen per week, maximaal zeven">${svg}</svg></div>`}
 function vVoortgang(){
   const ev=[30,60,90].map(d=>({d,s:get(`ev${d}|score`)}));
-  return `<div class="sec" style="gap:32px"><div><div class="mono">Scorebord</div><h1>Voortgang</h1></div>
+  return `<div class="sec" style="gap:32px"><div><div class="kick">Scorebord</div><h1>Voortgang</h1></div>
   <div class="stats">${statsHtml()}<div><span class="mono">Totaal</span><b>${pct()}%</b></div></div>
   <section class="sec"><div class="sechead"><h2>Dagen per week</h2><span class="muted">Afgevinkte gewoonte-dagen, maximaal 7.</span></div>${chart()}</section>
   <section class="sec"><div class="sechead"><h2>Wat ik telde</h2><span class="muted">We tellen wat je doet, niet wat je verkoopt.</span></div><div class="sums">${[['gesprekken','Gesprekken'],['opvolgingen','Opvolgingen'],['posts','Stories of posts'],['sessie','Sessies']].map(([r,l])=>`<div><span class="mono">${l}</span><span class="big">${sumRow(r,'gedaan')}<span class="muted" style="font-size:1rem"> / ${sumRow(r,'doel')||'–'}</span></span></div>`).join('')}</div></section>
@@ -308,7 +308,7 @@ function vVoortgang(){
   ${accountHtml()}</div>`}
 
 function vMateriaal(){
-  return `<div class="sec" style="gap:32px"><div><div class="mono">Alles bij elkaar</div><h1>Materiaal</h1></div>
+  return `<div class="sec" style="gap:32px"><div><div class="kick">Alles bij elkaar</div><h1>Materiaal</h1></div>
   <section class="sec"><div class="sechead"><h2>Boeken</h2></div><div class="mat"><a href="${CANVA.boek}" target="_blank" rel="noopener">Cursusboek · de theorie</a><a href="${CANVA.werkboek}" target="_blank" rel="noopener">Werkboek · papieren versie</a></div></section>
   <section class="sec"><div class="sechead"><h2>Presentaties</h2></div><div class="mat">${WEEKS.filter(w=>w.mod).map(w=>`<a href="${CANVA.deck[w.mod]}" target="_blank" rel="noopener">${String(w.mod).padStart(2,'0')} · ${h(w.title)}</a>`).join('')}<a href="${CANVA.deck.bonus}" target="_blank" rel="noopener">Bonus · het brand partner-gesprek</a></div></section>
   <section class="sec"><div class="sechead"><h2>Het ritme</h2></div><div class="rules">${[['Maandag','Weekfocus in de groep. Lees je opdracht.'],['Woensdag','Check-in: waar loop je vast?'],['Vrijdag','Deel je wins. Ook kleine.'],['Zondag','Vul je scorebord in.']].map(([d,t])=>`<div><b>${d}</b> · ${t}</div>`).join('')}</div>
@@ -422,7 +422,7 @@ async function vBeheer(){
     <div class="row"><div class="track" style="width:160px"><i style="width:${p.days/p.days_total*100}%"></i></div><span class="mono">${p.days} / ${p.days_total} dagen · ${p.weeks_done} / 13 weken</span></div>
     ${p.goal?`<p style="margin:0"><span class="mono">Doel</span><br>${h(p.goal)}</p>`:''}
     <div class="row"><a class="btn sm" href="#deelnemer-${p.id}-start">Bekijk boek</a><button class="btn ghost sm" type="button" data-act="invite" data-id="${p.id}" data-name="${h(p.name)}">Nieuwe link</button><button class="btn ghost sm" type="button" data-act="toggle" data-id="${p.id}" data-active="${p.active?1:0}">${p.active?'Uitschakelen':'Activeren'}</button><button class="btn ghost sm" type="button" data-act="del" data-id="${p.id}">Verwijderen</button></div></article>`}).join('');
-  return `<div class="sec" style="gap:28px"><div><div class="mono">Alleen voor de beheerder</div><h1>Deelnemers</h1></div>
+  return `<div class="sec" style="gap:28px"><div><div class="kick">Alleen voor de beheerder</div><h1>Deelnemers</h1></div>
   <form id="addform" class="card sec" novalidate><div class="mono">Nieuwe deelnemer</div>
    <div class="cols2"><div class="f"><label class="lb" for="ad-name">Naam</label><input id="ad-name" name="name" type="text" autocomplete="off"></div><div class="f"><label class="lb" for="ad-email">E-mail</label><input id="ad-email" name="email" type="email" autocomplete="off"></div></div>
    <p class="err" id="aerr" role="alert"></p><div><button class="btn" type="submit">Uitnodiging maken</button></div></form>
@@ -448,7 +448,7 @@ async function copyText(btn){
 /* ---- inloggen ---- */
 function showLogin(msg){
   chrome(); setNav('');
-  mainEl().innerHTML=`<div class="auth"><div><div class="mono">Sales Foundations 90</div><h1>90 Day Run</h1></div>
+  mainEl().innerHTML=`<div class="auth"><div><div class="kick">Sales Foundations 90</div><h1>90 Day Run</h1></div>
   <form id="loginform" class="sec" novalidate>
    <div class="f"><label class="lb" for="li-email">E-mail</label><input id="li-email" name="email" type="email" autocomplete="username"></div>
    <div class="f"><label class="lb" for="li-pw">Wachtwoord</label><input id="li-pw" name="password" type="password" autocomplete="current-password"></div>
@@ -470,7 +470,7 @@ async function showInvite(token){
   mainEl().innerHTML='<div class="auth"><p class="muted">Laden…</p></div>';
   let info; try{info=await api('GET','/auth/invite/'+encodeURIComponent(token))}
   catch(e){mainEl().innerHTML=`<div class="auth"><h1>Link niet geldig</h1><p>${h(e.message)}</p><a class="btn ghost" href="#start" data-reload="1">Naar inloggen</a></div>`;return}
-  mainEl().innerHTML=`<div class="auth"><div><div class="mono">Welkom bij de 90 Day Run</div><h1>Hallo ${h(info.name)}</h1></div>
+  mainEl().innerHTML=`<div class="auth"><div><div class="kick">Welkom bij de 90 Day Run</div><h1>Hallo ${h(info.name)}</h1></div>
   <p>Kies een wachtwoord voor <b>${h(info.email)}</b>. Daarna zit je in je eigen boek.</p>
   <form id="inviteform" class="sec" novalidate data-token="${h(token)}">
    <div class="f"><label class="lb" for="iv-pw">Wachtwoord (minstens 10 tekens)</label><input id="iv-pw" name="pw" type="password" autocomplete="new-password"></div>
@@ -553,6 +553,17 @@ document.addEventListener('visibilitychange',async()=>{
   }catch(e){}
 });
 addEventListener('pagehide',()=>{flush(true)});
+
+/* ---- laatste woord van elke kop in accentkleur, zoals in de presentaties ---- */
+function decorate(){
+  document.querySelectorAll('#app h1').forEach(el=>{
+    if(el.children.length) return;
+    const tx=el.textContent.trim(), i=tx.lastIndexOf(' '); if(i<0) return;
+    el.textContent=''; el.append(tx.slice(0,i)+' ');
+    const s=document.createElement('span'); s.className='hl'; s.textContent=tx.slice(i+1); el.append(s);
+  });
+}
+new MutationObserver(decorate).observe(document.getElementById('app'),{childList:true,subtree:true});
 
 /* ---- start ---- */
 (async function boot(){

@@ -8,6 +8,9 @@ out = root / "frontend"; out.mkdir(exist_ok=True)
 def L(a, b): return "\n".join(src[a-1:b])   # 1-gebaseerd, inclusief
 
 css = L(5, 155)
+css = css[css.index("*{box-sizing"):]   # eigen thema-tokens komen ervoor
+tokens = (root/"tools/theme-tokens.css").read_text()
+restyle = (root/"tools/theme-restyle.css").read_text()
 extra = """
 [hidden]{display:none!important}
 /* --- login, beheer, alleen-lezen --- */
@@ -28,7 +31,9 @@ body.anon .hp,body.anon .nav{display:none}
 input[disabled],textarea[disabled],select[disabled]{opacity:.85;cursor:not-allowed}
 .chk input[disabled]+.box{cursor:not-allowed}
 """
-(out/"styles.css").write_text(css + extra)
+(out/"styles.css").write_text(tokens + css + extra + restyle)
+import shutil; shutil.copytree(root/"tools/fonts", out/"fonts", dirs_exist_ok=True)
+(out/"theme.js").write_text((root/"tools/theme.js").read_text())
 
 js = L(172, 289)                       # na `const C = ...` t/m voor '/* ---- state ---- */'
 head = L(170, 171).replace("<script>", "").replace("/*COURSE*/null", "window.COURSE")
@@ -50,9 +55,10 @@ assert "localStorage" not in app and "bindBackup" not in app and "persist" not i
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <title>90 Day Run</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Mono:wght@500&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="preload" href="/fonts/anton-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/styles.css">
+<meta name="theme-color" content="#0e0e0e">
+<script src="/theme.js"></script>
 </head>
 <body class="anon">
 <div class="wrap">
@@ -61,6 +67,7 @@ assert "localStorage" not in app and "bindBackup" not in app and "persist" not i
       <a class="brand" href="#start">90 Day <b>Run</b></a>
       <div class="hp"><span class="mono" id="hpl"></span><div class="track"><i id="hpb"></i></div></div>
       <span id="sv" role="status" aria-live="polite"></span>
+      <div class="theme" role="group" aria-label="Weergave"><button type="button" data-theme-set="light" aria-label="Licht" title="Licht"></button><button type="button" data-theme-set="dark" aria-label="Donker" title="Donker"></button><button type="button" data-theme-set="red" aria-label="Rood" title="Rood"></button></div>
       <button class="btn ghost sm" id="lo" type="button" hidden>Uitloggen</button>
     </div>
     <nav class="nav" id="nav" aria-label="Hoofdmenu"></nav>

@@ -1,0 +1,46 @@
+/* --- huisstijl van de presentaties --- */
+h1,h2,h3,.brand,.ringnum,.stats b,.big,.wk .n,.rn{font-weight:400}
+h1{font-size:clamp(2.6rem,9vw,4.8rem);line-height:1;letter-spacing:.005em}
+h2{font-size:clamp(1.8rem,5vw,2.5rem);line-height:1}
+h3{font-size:1.6rem;line-height:1.05}
+.brand{font-size:1.7rem}
+.hl{display:block;color:var(--hl)}
+.kick{font:700 .78rem/1.35 var(--body);letter-spacing:.07em;text-transform:uppercase;color:var(--kick)}
+.err{color:var(--err)}
+.pill{font-weight:600}
+.pill.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+
+/* afgeronde kaarten zoals in de decks */
+.card,.fiche,.today,.wk,.mat a,.day,.viewas,.tr{border-radius:var(--r)}
+textarea,input[type=text],input[type=number],input[type=date],input[type=email],input[type=password],select{border-radius:8px}
+.btn{border-radius:8px}
+.opt span,.box{border-radius:8px}
+input[type=email],input[type=password]{width:100%;background:var(--field);color:var(--fg);border:1px solid var(--line);padding:9px 10px;font:inherit;min-width:0}
+
+/* kop: teller als rode pil, voortgang in segmenten (één per week) */
+.hp .mono{background:var(--accent);color:var(--accent-ink);border-radius:99px;padding:3px 10px;font-weight:700}
+.track{height:8px;border-radius:0;background:var(--line);
+  -webkit-mask:repeating-linear-gradient(90deg,#000 0 calc(7.6923% - 3px),transparent 0 7.6923%);
+  mask:repeating-linear-gradient(90deg,#000 0 calc(7.6923% - 3px),transparent 0 7.6923%)}
+.hp .track{width:130px}
+
+/* weergavekeuze */
+.theme{display:flex;gap:8px;align-items:center}
+.theme button{width:22px;height:22px;border-radius:50%;border:2px solid var(--muted);padding:0;cursor:pointer}
+.theme button[data-theme-set="light"]{background:#f6f3ee}
+.theme button[data-theme-set="dark"]{background:#0e0e0e}
+.theme button[data-theme-set="red"]{background:#c4201a}
+.theme button[aria-pressed="true"]{outline:2px solid var(--fg);outline-offset:2px}
+@media(max-width:520px){.hp .track{width:80px}}
+
+/* rode weergave: rode ondergrond, donkere kaarten met witte tekst en rode accenten */
+:root[data-theme="red"] :is(.card,.fiche,.today,.wk,.mat a,.day,.viewas,.pcard){
+  --bg:#0e0505; --field:#0e0505; --line:#3a2523; --fg:#fff; --muted:#cdb9b5;
+  --accent:#ff6a5e; --accent-ink:#1a0707; --hl:#ff6a5e; --kick:#ff6a5e; --err:#ff8b82; --soft:#150b0b;
+  border-color:transparent}
+:root[data-theme="red"] .btn.ghost{background:transparent}
+:root[data-theme="red"] .box{border-color:#cdb9b5}
+.ringnum{font-size:64px}
+h1{font-size:clamp(2.3rem,9vw,4.8rem)}
+.hero h1{font-size:clamp(1.9rem,6.6vw,3.6rem)}
+@media(max-width:620px){.hero h1{font-size:clamp(1.9rem,10vw,3.4rem)}}

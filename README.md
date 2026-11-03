@@ -59,6 +59,10 @@ cd backend && python -m pytest -q tests     # API, privacy en beveiliging
 tools/run_e2e.sh                            # browsertest met Playwright (login, isolatie, beheerdersweergave)
 ```
 
+## Weergave
+
+De app heeft drie weergaven, afgestemd op de presentaties: donker (standaard), licht en rood. Je kiest met de drie bolletjes rechtsboven; de keuze wordt per toestel onthouden. De lettertypen (Anton, Public Sans, IBM Plex Mono) staan in de app zelf, dus er worden geen externe diensten geladen.
+
 ## Opbouw
 
 ```

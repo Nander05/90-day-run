@@ -1,0 +1,25 @@
+@font-face{font-family:'Anton';font-weight:400;font-style:normal;font-display:swap;src:url(/fonts/anton-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Public Sans';font-weight:400;font-style:normal;font-display:swap;src:url(/fonts/public-sans-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Public Sans';font-weight:500;font-style:normal;font-display:swap;src:url(/fonts/public-sans-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Public Sans';font-weight:600;font-style:normal;font-display:swap;src:url(/fonts/public-sans-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Public Sans';font-weight:700;font-style:normal;font-display:swap;src:url(/fonts/public-sans-latin-700-normal.woff2) format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:500;font-style:normal;font-display:swap;src:url(/fonts/ibm-plex-mono-latin-500-normal.woff2) format('woff2')}
+/* Drie weergaven, afgestemd op de presentaties: donker (standaard), licht en rood. */
+:root,:root[data-theme="dark"]{
+  --bg:#0e0e0e; --surface:#1b1b1b; --field:#131313; --line:#2f2f2f; --fg:#f5f1ea; --muted:#9d9a95;
+  --accent:#e63b2e; --accent-ink:#fff; --hl:#e63b2e; --kick:#e8402f; --err:#ff6b5f; --ok:#5fbf8a; --soft:#2a1512;
+  --display:'Anton','Bebas Neue','Arial Narrow',Impact,sans-serif;
+  --body:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --r:10px; color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#f6f3ee; --surface:#ffffff; --field:#ffffff; --line:#ddd7ce; --fg:#121212; --muted:#666059;
+  --accent:#d42a1f; --accent-ink:#fff; --hl:#d42a1f; --kick:#c9241a; --err:#b3201a; --ok:#1f8a53; --soft:#f8e4e0;
+  color-scheme:light;
+}
+:root[data-theme="red"]{
+  --bg:#c4201a; --surface:#150b0b; --field:#8f1511; --line:rgba(255,255,255,.34); --fg:#ffffff; --muted:#ffe3df;
+  --accent:#111111; --accent-ink:#ffffff; --hl:#140606; --kick:#ffffff; --err:#ffffff; --ok:#5fbf8a; --soft:#a81a15;
+  color-scheme:dark;
+}

@@ -102,7 +102,7 @@ async function vBeheer(){
     <div class="row"><div class="track" style="width:160px"><i style="width:${p.days/p.days_total*100}%"></i></div><span class="mono">${p.days} / ${p.days_total} dagen · ${p.weeks_done} / 13 weken</span></div>
     ${p.goal?`<p style="margin:0"><span class="mono">Doel</span><br>${h(p.goal)}</p>`:''}
     <div class="row"><a class="btn sm" href="#deelnemer-${p.id}-start">Bekijk boek</a><button class="btn ghost sm" type="button" data-act="invite" data-id="${p.id}" data-name="${h(p.name)}">Nieuwe link</button><button class="btn ghost sm" type="button" data-act="toggle" data-id="${p.id}" data-active="${p.active?1:0}">${p.active?'Uitschakelen':'Activeren'}</button><button class="btn ghost sm" type="button" data-act="del" data-id="${p.id}">Verwijderen</button></div></article>`}).join('');
-  return `<div class="sec" style="gap:28px"><div><div class="mono">Alleen voor de beheerder</div><h1>Deelnemers</h1></div>
+  return `<div class="sec" style="gap:28px"><div><div class="kick">Alleen voor de beheerder</div><h1>Deelnemers</h1></div>
   <form id="addform" class="card sec" novalidate><div class="mono">Nieuwe deelnemer</div>
    <div class="cols2"><div class="f"><label class="lb" for="ad-name">Naam</label><input id="ad-name" name="name" type="text" autocomplete="off"></div><div class="f"><label class="lb" for="ad-email">E-mail</label><input id="ad-email" name="email" type="email" autocomplete="off"></div></div>
    <p class="err" id="aerr" role="alert"></p><div><button class="btn" type="submit">Uitnodiging maken</button></div></form>
@@ -128,7 +128,7 @@ async function copyText(btn){
 /* ---- inloggen ---- */
 function showLogin(msg){
   chrome(); setNav('');
-  mainEl().innerHTML=`<div class="auth"><div><div class="mono">Sales Foundations 90</div><h1>90 Day Run</h1></div>
+  mainEl().innerHTML=`<div class="auth"><div><div class="kick">Sales Foundations 90</div><h1>90 Day Run</h1></div>
   <form id="loginform" class="sec" novalidate>
    <div class="f"><label class="lb" for="li-email">E-mail</label><input id="li-email" name="email" type="email" autocomplete="username"></div>
    <div class="f"><label class="lb" for="li-pw">Wachtwoord</label><input id="li-pw" name="password" type="password" autocomplete="current-password"></div>
@@ -150,7 +150,7 @@ async function showInvite(token){
   mainEl().innerHTML='<div class="auth"><p class="muted">Laden…</p></div>';
   let info; try{info=await api('GET','/auth/invite/'+encodeURIComponent(token))}
   catch(e){mainEl().innerHTML=`<div class="auth"><h1>Link niet geldig</h1><p>${h(e.message)}</p><a class="btn ghost" href="#start" data-reload="1">Naar inloggen</a></div>`;return}
-  mainEl().innerHTML=`<div class="auth"><div><div class="mono">Welkom bij de 90 Day Run</div><h1>Hallo ${h(info.name)}</h1></div>
+  mainEl().innerHTML=`<div class="auth"><div><div class="kick">Welkom bij de 90 Day Run</div><h1>Hallo ${h(info.name)}</h1></div>
   <p>Kies een wachtwoord voor <b>${h(info.email)}</b>. Daarna zit je in je eigen boek.</p>
   <form id="inviteform" class="sec" novalidate data-token="${h(token)}">
    <div class="f"><label class="lb" for="iv-pw">Wachtwoord (minstens 10 tekens)</label><input id="iv-pw" name="pw" type="password" autocomplete="new-password"></div>
@@ -233,6 +233,17 @@ document.addEventListener('visibilitychange',async()=>{
   }catch(e){}
 });
 addEventListener('pagehide',()=>{flush(true)});
+
+/* ---- laatste woord van elke kop in accentkleur, zoals in de presentaties ---- */
+function decorate(){
+  document.querySelectorAll('#app h1').forEach(el=>{
+    if(el.children.length) return;
+    const tx=el.textContent.trim(), i=tx.lastIndexOf(' '); if(i<0) return;
+    el.textContent=''; el.append(tx.slice(0,i)+' ');
+    const s=document.createElement('span'); s.className='hl'; s.textContent=tx.slice(i+1); el.append(s);
+  });
+}
+new MutationObserver(decorate).observe(document.getElementById('app'),{childList:true,subtree:true});
 
 /* ---- start ---- */
 (async function boot(){
