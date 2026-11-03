@@ -1,0 +1,26 @@
+# Lokaal draaien met een echte MongoDB:  cp .env.example .env  (vul aan)  en daarna  docker compose up --build
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: development # lokaal geen Secure-cookie, anders werkt inloggen niet op http://localhost
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: run90
+      JWT_SECRET: ${JWT_SECRET:-lokaal-alleen-voor-testen-vervang-mij-door-een-lange-geheime-waarde}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?zet ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?zet ADMIN_PASSWORD in .env}
+      ADMIN_NAME: ${ADMIN_NAME:-Nander}
+
+volumes:
+  mongo-data:

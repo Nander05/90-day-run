@@ -1,0 +1,23 @@
+# Render Blueprint: maakt de webservice aan vanuit deze repo. De database is MongoDB Atlas (gratis M0).
+services:
+  - type: web
+    name: 90-day-run
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DB_NAME
+        value: run90
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGO_URL # de Atlas-verbindingsstring, zie README
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_NAME
+        value: Nander
