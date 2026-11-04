@@ -1,4 +1,6 @@
 import re
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from typing import Dict, List, Union
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -33,10 +35,36 @@ class ProgressPatch(BaseModel):
     unset: List[str] = Field(default_factory=list)
 
 
+RESERVED = {"me|start"}  # alleen de server zet dit (zie /me/start)
+
+
+def today_local() -> str:
+    return datetime.now(timezone.utc).astimezone(ZoneInfo("Europe/Brussels")).date().isoformat()
+
+
 @router.get("/me/progress")
 def get_progress(user: dict = Depends(current_user)):
     doc = get_db().progress.find_one({"user_id": user["_id"]})
-    return {"d": decode_doc(doc), "updated_at": iso((doc or {}).get("updated_at"))}
+    return {
+        "d": decode_doc(doc),
+        "updated_at": iso((doc or {}).get("updated_at")),
+        "access": {"unlock_to": user.get("unlock_to")},
+    }
+
+
+@router.post("/me/start")
+def start_run(user: dict = Depends(current_user)):
+    """Dag 1 begint op het moment dat de deelnemer zelf start. Eén keer, door de server bepaald."""
+    db = get_db()
+    existing = db.progress.find_one({"user_id": user["_id"]}, {"d": 1}) or {}
+    cur = (existing.get("d") or {}).get("me|start")
+    if cur:
+        return {"start": cur, "already": True}
+    day = today_local()
+    db.progress.update_one(
+        {"user_id": user["_id"]}, {"$set": {"d.me|start": day, "updated_at": utcnow()}}, upsert=True
+    )
+    return {"start": day, "already": False}
 
 
 @router.patch("/me/progress")
@@ -45,7 +73,7 @@ def patch_progress(body: ProgressPatch, user: dict = Depends(current_user)):
         raise HTTPException(413, "Te veel wijzigingen in één keer.")
     to_set = {}
     for key, val in body.set.items():
-        if not KEY_RE.match(key):
+        if not KEY_RE.match(key) or key in RESERVED:
             raise HTTPException(422, "Ongeldige sleutel.")
         if isinstance(val, str) and len(val) > MAX_VALUE_LEN:
             raise HTTPException(422, "Tekst is te lang.")
@@ -54,7 +82,7 @@ def patch_progress(body: ProgressPatch, user: dict = Depends(current_user)):
         to_set[key] = val
     to_unset = []
     for key in body.unset:
-        if not KEY_RE.match(key):
+        if not KEY_RE.match(key) or key in RESERVED:
             raise HTTPException(422, "Ongeldige sleutel.")
         if key not in to_set:
             to_unset.append(key)

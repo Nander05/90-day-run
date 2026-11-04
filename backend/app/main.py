@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config
 from .db import get_db, utcnow
-from .routers import admin, auth, progress
+from .routers import admin, auth, progress, sessions
 from .security import hash_password
 
 CSP = (
@@ -78,6 +78,8 @@ def healthz():
 app.include_router(auth.router)
 app.include_router(progress.router)
 app.include_router(admin.router)
+app.include_router(sessions.router)
+app.include_router(sessions.admin)
 
 if os.path.isdir(config.FRONTEND_DIR):
     app.mount("/", StaticFiles(directory=config.FRONTEND_DIR, html=True), name="frontend")

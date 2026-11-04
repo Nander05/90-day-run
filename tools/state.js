@@ -1,5 +1,5 @@
 /* ---- server en opslag ---- */
-let ME=null, OWN={}, VIEW=null; // ME: ingelogde gebruiker, OWN: eigen boek, VIEW: boek van een deelnemer (beheerder, alleen lezen)
+let ME=null, OWN={}, VIEW=null, ACCESS={unlock_to:null}, SESS=[]; // ME: ingelogde gebruiker, OWN: eigen boek, VIEW: boek van een deelnemer (beheerder, alleen lezen)
 const get=k=>(VIEW?VIEW.d:OWN)[k];
 async function api(method,path,body,keepalive){
   const r=await fetch('/api'+path,{method,credentials:'same-origin',keepalive:!!keepalive,

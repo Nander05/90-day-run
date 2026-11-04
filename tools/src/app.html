@@ -169,9 +169,9 @@ textarea::placeholder,input::placeholder{color:var(--muted)}
 
 <script>
 const C = /*COURSE*/null;
-const START = new Date(2026,10,2);
 const MON = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 const DOW = ['ma','di','wo','do','vr','za','zo'];
+const WD = ['zo','ma','di','wo','do','vr','za']; // JS getDay()
 const CANVA = {
   boek:'https://www.canva.com/d/FLQwrdqrsrgChG6', werkboek:'https://www.canva.com/d/yQkxHvn4feoyMD6',
   deck:{1:'https://www.canva.com/d/_iyDooGlxYkcD5f',2:'https://www.canva.com/d/IpcLvhq28_Y5oKW',3:'https://www.canva.com/d/lIph8V1t7B7ie5l',4:'https://www.canva.com/d/rcNuvHcXL_ZbZ8w',5:'https://www.canva.com/d/Z5D1vu1jyCGZMCi',6:'https://www.canva.com/d/rEsAZMr2e1NkE-P',7:'https://www.canva.com/d/0lk0AN28vm7jn8D',8:'https://www.canva.com/d/YTxr3OkqIhTOhZ8',9:'https://www.canva.com/d/ZVKxbsl85hvu4Tz',10:'https://www.canva.com/d/q9miVfWupH0tpxl',11:'https://www.canva.com/d/UoIljVZDmTzvrHH',12:'https://www.canva.com/d/40iRUnFrc5jwGT3',bonus:'https://www.canva.com/d/jfp7FP_lNjS_xko'}
@@ -185,7 +185,7 @@ const WEEKS = [
  W(5,5,'Zichtbaarheid','Zet de lijnen op het veld','Het gesprek openen: agenda, exit en rapport.','Elke dag één Story of post met een vraag.','Elke dag zichtbaar.','Hoe voelde de exit voor de ander?'),
  W(6,6,'Zichtbaarheid','Begrijp eerst, adviseer daarna','Discovery, de vier W-vragen en de teach back.','Elke dag één Story of post met een vraag.','Elke dag zichtbaar.','Welke tegenstrijdigheid hoorde je?'),
  W(7,7,'Zichtbaarheid','Waar wil je naartoe?','Verlangen, impact en eerlijke urgentie.','Elke dag één Story of post met een vraag.','Elke dag zichtbaar.','Welk antwoord was het meest concreet?'),
- W(8,0,'Kerst','Inhaalweek','Kerstweek. Geen nieuwe module. Haal in wat bleef liggen, of laad op voor de tweede helft.','','',''),
+ W(8,0,'Inhaal','Inhaalweek','Geen nieuwe module. Haal in wat bleef liggen, of laad op voor de tweede helft.','','',''),
  W(9,8,'Zichtbaarheid','Minder zeggen, meer helpen','Een oplossing eenvoudig en relevant presenteren.','Elke dag één Story of post met een vraag.','Elke dag zichtbaar.','Hoeveel kon je schrappen?'),
  W(10,9,'Uitnodigen','Durf de vraag te stellen','Beslissingen begeleiden, prijs en commitment.','Elke dag één opvolging.','Elke dag één opvolging.','Hoeveel duidelijke beslissingen?'),
  W(11,10,'Uitnodigen','Twijfel is informatie','Bezwaren erkennen, onderzoeken en opnieuw vragen.','Elke dag één opvolging.','Elke dag één opvolging.','Welk bezwaar kwam het vaakst?'),
@@ -302,9 +302,25 @@ const sentence=s=>s?s[0]+s.slice(1).toLowerCase():'';
 const day0=d=>new Date(d.getFullYear(),d.getMonth(),d.getDate());
 const addDays=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
 const fmt=d=>d.getDate()+' '+MON[d.getMonth()];
-const todayIdx=()=>Math.round((day0(new Date())-START)/864e5);
-const weekRange=n=>fmt(addDays(START,(n-1)*7))+' – '+fmt(addDays(START,(n-1)*7+6));
-function current(){const i=todayIdx(); if(i<0) return {i,w:1,d:0,state:'before'}; if(i>90) return {i,w:13,d:6,state:'after'}; return {i,w:Math.min(13,Math.floor(i/7)+1),d:Math.min(6,i%7),state:'run'}}
+/* Dag 1 is de dag waarop de deelnemer zelf start (me|start, door de server gezet). */
+const startD=()=>{const m=String(get('me|start')||'').match(/^(\d{4})-(\d\d)-(\d\d)$/);return m?new Date(+m[1],+m[2]-1,+m[3]):null};
+const started=()=>!!startD();
+const todayIdx=()=>{const s=startD();return s?Math.round((day0(new Date())-s)/864e5):null};
+const dayDate=(n,i)=>{const s=startD();return s?addDays(s,(n-1)*7+i):null};
+const weekRange=n=>{const s=startD();return s?fmt(addDays(s,(n-1)*7))+' – '+fmt(addDays(s,(n-1)*7+6)):''};
+function current(){const i=todayIdx(); if(i==null) return {i:-1,w:1,d:0,state:'new'}; if(i>90) return {i,w:13,d:6,state:'after'}; const j=Math.max(0,i); return {i:j,w:Math.min(13,Math.floor(j/7)+1),d:Math.min(6,j%7),state:'run'}}
+
+/* ---- toegang: een week gaat open als de vorige gelezen en de training gevolgd is ---- */
+const prevWeek=n=>n===9?7:n-1;
+const nextWeek=n=>n===7?8:n<13?n+1:0;
+const ready=n=>!!(get(`w${n}|read`)&&get(`w${n}|trained`));
+function isOpen(n){
+  if(VIEW) return true;
+  if(!started()) return false;
+  if(ACCESS.unlock_to!=null&&n<=ACCESS.unlock_to) return true;
+  return n===1||ready(prevWeek(n));
+}
+function frontier(){for(const n of HABIT) if(isOpen(n)&&!ready(n)) return n; return 0}
 
 /* ---- metrics ---- */
 const wd=n=>{let c=0;for(let i=0;i<7;i++) if(get(`w${n}|d${i}`)) c++;return c};
@@ -354,31 +370,50 @@ function ring(){
     t+=`<line class="tk ${cls}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`}
   return `<svg class="ringsvg" viewBox="0 0 220 220" role="img" aria-label="Negentig dagen, ${n} voorbij">${t}<text class="ringlab" x="110" y="84" text-anchor="middle">DAG</text><text class="ringnum" x="110" y="144" text-anchor="middle">${n||'–'}</text><text class="ringlab" x="110" y="166" text-anchor="middle">VAN 90</text></svg>`}
 
+const LOCK='<svg class="lockic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+const checkRow=(k,label)=>`<span class="ck ${get(k)?'on':''}"><i>${get(k)?'✓':''}</i>${label}</span>`;
+function gateCard(n){
+  const nx=nextWeek(n);
+  return `<div class="card gate"><div class="mono">Volgende stap · week ${n}</div><div class="cks">${checkRow(`w${n}|read`,'Hoofdstuk gelezen')}${checkRow(`w${n}|trained`,'Live training gevolgd')}</div><p class="muted" style="margin:0">Vink je beide af${nx?`, dan gaat ${nx===8?'de inhaalweek':'week '+nx} open`:''}.</p><div><a class="btn" href="#week-${n}">Naar week ${n}</a></div></div>`}
+function liveCard(){
+  const s=nextSession(); if(!s) return '';
+  return `<div class="card livecard"><div class="mono">Volgende live training</div><b style="font-size:1.1rem">${h(s.title)}</b><span class="muted">${fmtWhen(s.starts_at)}</span><div class="row">${s.join_url?`<a class="btn" href="${h(s.join_url)}" target="_blank" rel="noopener">Doe mee</a>`:''}<a class="btn ghost" href="#live">Alle trainingen</a></div></div>`}
+function vWelcome(){
+  return `<div class="sec" style="gap:28px"><div class="hero">${ring()}<div class="sec"><div class="kick">Sales Foundations 90</div><h1>Klaar om te starten?</h1>
+  <p style="font-size:1.1rem;margin:0">Dag 1 begint op het moment dat jij op start drukt. Je leest week 1, volgt de live training en daarna gaat week 2 open. Zo bepaal jij je eigen tempo.</p>
+  <div class="row"><button class="btn big-btn" type="button" data-start="1">Start mijn 90 dagen</button><a class="btn ghost" href="#mijn-90">Eerst mijn doel opschrijven</a></div></div></div>${liveCard()}</div>`}
 function vStart(){
-  const c=current(), w=WEEKS[c.w-1], name=get('me|naam');
+  const c=current();
+  if(c.state==='new'&&!VIEW) return vWelcome();
+  const fw=frontier(), w=WEEKS[(fw||c.w)-1], name=get('me|naam');
   let head, action='';
-  if(c.state==='before'){const dd=-c.i; head=`<div class="kick">De run start op ${fmt(START)}</div><h1>Nog ${dd} ${dd===1?'dag':'dagen'}</h1>`}
+  if(c.state==='new') head=`<div class="kick">Nog niet gestart</div><h1>Run nog niet begonnen</h1>`;
   else if(c.state==='after'){head=`<div class="kick">Dag 90</div><h1>Dit heb jij gebouwd</h1>`}
-  else head=`<div class="kick">${DOW[(c.i%7)]} ${fmt(addDays(START,c.i))} · week ${c.w} · ${h(w.ph)}</div><h1>${h(w.title)}</h1>`;
+  else head=`<div class="kick">${WD[addDays(startD(),c.i).getDay()]} ${fmt(addDays(startD(),c.i))} · dag ${c.i+1} van 90</div><h1>${h(w.title)}</h1><p class="muted" style="margin:0">Week ${w.n} · ${h(w.ph)}</p>`;
   if(c.state==='run'){
+    const cw=WEEKS[c.w-1];
     if(c.w===8) action=`<a class="today" href="#week-8" style="text-decoration:none"><span class="box" style="border-color:var(--accent)"></span><span><b>Inhaalweek.</b><br><span class="muted">Haal in wat bleef liggen, of laad op voor de tweede helft.</span></span></a>`;
-    else{const k=`w${c.w}|d${c.d}`; action=`<button class="today" id="todaybtn" data-day="${k}" aria-pressed="${get(k)?'true':'false'}"><span class="box">✓</span><span><b id="todaylab">${get(k)?'Vandaag gedaan':'Vandaag afvinken'}</b><br><span class="muted">${h(w.gew)}</span></span></button>`}}
+    else if(!isOpen(c.w)) action=`<a class="today lockedtoday" href="#week-${c.w}" style="text-decoration:none">${LOCK}<span><b>Week ${c.w} is nog dicht.</b><br><span class="muted">Rond eerst week ${prevWeek(c.w)} af: lezen en de training volgen.</span></span></a>`;
+    else{const k=`w${c.w}|d${c.d}`; action=`<button class="today" id="todaybtn" data-day="${k}" aria-pressed="${get(k)?'true':'false'}"><span class="box">✓</span><span><b id="todaylab">${get(k)?'Vandaag gedaan':'Vandaag afvinken'}</b><br><span class="muted">${h(cw.gew)}</span></span></button>`}}
   const first=!get('me|doel')?`<div class="card"><div class="mono">Eerste stap</div><p style="margin:6px 0 12px"><b>Schrijf je doel voor dag 90 op.</b> Het is het enige dat je nodig hebt om te starten.</p><a class="btn" href="#mijn-90">Mijn 90 dagen invullen</a></div>`:`<div class="card"><div class="mono">Mijn doel${name?' · '+h(name):''}</div><p style="margin:6px 0 0;font-size:1.1rem">${h(get('me|doel'))}</p></div>`;
-  return `<div class="sec"><div class="hero">${ring()}<div class="sec">${head}${action}<div class="row"><a class="btn ghost" href="#week-${c.w}">Open week ${c.w}</a><a class="btn ghost" href="#reis">Hele reis</a></div></div></div>
-  ${first}
+  return `<div class="sec"><div class="hero">${ring()}<div class="sec">${head}${action}<div class="row"><a class="btn ghost" href="#week-${fw||c.w}">Open week ${fw||c.w}</a><a class="btn ghost" href="#reis">Hele reis</a></div></div></div>
+  ${fw?gateCard(fw):''}${liveCard()}${first}
   <div class="stats" id="stats"></div></div>`}
 function statsHtml(){return `<div><span class="mono">Gewoonte-dagen</span><b>${totalDays()}<span class="muted" style="font-size:1rem"> / 84</span></b></div><div><span class="mono">Reeks</span><b>${streak()}</b></div><div><span class="mono">Weken afgerond</span><b>${weeksDone()}<span class="muted" style="font-size:1rem"> / 13</span></b></div>`}
 
 function vReis(){
   const phases=[['Fundament','Jezelf: je houding, je rust en je respect voor de keuze van de ander.',[1,2,3,4]],['Zichtbaarheid','Gesprekken starten en echt begrijpen.',[5,6,7,8,9]],['Uitnodigen','Durven vragen, twijfel onderzoeken en opvolgen tot de lus gesloten is.',[10,11,12,13]]];
-  return `<div class="sec"><div><div class="kick">13 weken · één route</div><h1>De reis</h1></div>`+phases.map(([p,d,ws])=>`<section class="phase"><div class="sechead"><h2>${p}</h2><span class="muted">${d}</span></div>${ws.map(n=>{const w=WEEKS[n-1],c=wd(n),r=n===8;
-    return `<a class="wk ${r?'rest':''}" href="#week-${n}"><span class="n">${String(n).padStart(2,'0')}</span><span><span class="t">${h(w.title)}</span><br><span class="mono">${weekRange(n)}${get(`w${n}|done`)?' · afgerond':''}</span></span>${r?`<span class="pill">Kerst</span>`:`<span class="track" title="${c} van 7 dagen"><i style="width:${c/7*100}%"></i></span>`}</a>${EVALS[n]?`<a class="pill evmark ${get('ev'+EVALS[n].d+'|score')?'on':''}" href="#week-${n}-evaluatie" data-ev="1">Dag ${EVALS[n].d} · evaluatie</a>`:''}`}).join('')}</section>`).join('')+
+  const banner=!started()&&!VIEW?`<div class="card gate"><div class="mono">Nog niet gestart</div><p style="margin:0">Dag 1 begint zodra jij start. Tot dan zijn de weken dicht.</p><div><button class="btn" type="button" data-start="1">Start mijn 90 dagen</button></div></div>`:'';
+  return `<div class="sec"><div><div class="kick">13 weken · één route</div><h1>De reis</h1></div>${banner}`+phases.map(([p,d,ws])=>`<section class="phase"><div class="sechead"><h2>${p}</h2><span class="muted">${d}</span></div>${ws.map(n=>{const w=WEEKS[n-1],c=wd(n),r=n===8,open=isOpen(n);
+    const sub=open?(weekRange(n)||'Week '+n)+(get(`w${n}|done`)?' · afgerond':''):'Dicht · rond week '+prevWeek(n)+' af';
+    const right=r?`<span class="pill">Inhaal</span>`:open?`<span class="track" title="${c} van 7 dagen"><i style="width:${c/7*100}%"></i></span>`:LOCK;
+    return `<a class="wk ${r?'rest':''} ${open?'':'locked'}" href="#week-${n}"><span class="n">${String(n).padStart(2,'0')}</span><span><span class="t">${h(w.title)}</span><br><span class="mono">${sub}</span></span>${right}</a>${EVALS[n]&&open?`<a class="pill evmark ${get('ev'+EVALS[n].d+'|score')?'on':''}" href="#week-${n}-evaluatie" data-ev="1">Dag ${EVALS[n].d} · evaluatie</a>`:''}`}).join('')}</section>`).join('')+
   `<section class="phase"><div class="sechead"><h2>Bonus</h2><span class="muted">Wanneer nodig</span></div><a class="wk" href="#bonus"><span class="n">+</span><span><span class="t">Het brand partner-gesprek</span><br><span class="mono">Business</span></span><span></span></a></section></div>`}
 
 function trackerHtml(n,w){
   const c=current(), ti=(c.state==='run'&&c.w===n)?c.d:-1;
   const rows=[['gesprekken','Echte gesprekken gestart'],['opvolgingen','Opvolgingen'],['posts','Stories of posts met een vraag'],['sessie','Sessie of check-in bijgewoond']];
-  return `<div class="sec"><div class="days" role="group" aria-label="Dagen van week ${n}">${DOW.map((d,i)=>{const k=`w${n}|d${i}`;return `<button class="day ${i===ti?'now':''}" data-day="${k}" aria-pressed="${get(k)?'true':'false'}" aria-label="${d} ${fmt(addDays(START,(n-1)*7+i))}"><span>${d.toUpperCase()}</span><small>${addDays(START,(n-1)*7+i).getDate()}</small></button>`}).join('')}</div>
+  return `<div class="sec"><div class="days" role="group" aria-label="Dagen van week ${n}">${DOW.map((d0,i)=>{const dd=dayDate(n,i),d=dd?WD[dd.getDay()]:'d'+(i+1);const k=`w${n}|d${i}`;return `<button class="day ${i===ti?'now':''}" data-day="${k}" aria-pressed="${get(k)?'true':'false'}" aria-label="${d}${dayDate(n,i)?' '+fmt(dayDate(n,i)):''}"><span>${d.toUpperCase()}</span><small>${dayDate(n,i)?dayDate(n,i).getDate():'·'}</small></button>`}).join('')}</div>
   <div class="counters"><div class="cr h"><span>Wat ik tel</span><span>Doel</span><span>Gedaan</span></div>${rows.map(([r,l])=>`<div class="cr"><span>${l}</span><input type="number" min="0" inputmode="numeric" data-k="w${n}|t.${r}.doel" id="${sid(`w${n}|t.${r}.doel`)}" aria-label="Doel: ${l}" value="${h(get(`w${n}|t.${r}.doel`)||'')}"><input type="number" min="0" inputmode="numeric" data-k="w${n}|t.${r}.gedaan" id="${sid(`w${n}|t.${r}.gedaan`)}" aria-label="Gedaan: ${l}" value="${h(get(`w${n}|t.${r}.gedaan`)||'')}"></div>`).join('')}</div>
   <div class="cols2">${text(`w${n}|werkte`,'Vrijdag · wat werkte?',3)}${text(`w${n}|niet`,'Vrijdag · wat niet?',3)}</div>${text(`w${n}|win`,'Mijn win van deze week',2)}</div>`}
 
@@ -390,22 +425,39 @@ function evalHtml(n){const e=EVALS[n],k=`ev${e.d}`;
   <p class="muted">Bespreek deze pagina met je buddy vóór de live sessie.</p>
   ${n===13?`<div class="card"><div class="mono">Dag 90</div><h2 style="margin:6px 0 10px">Dit heb jij gebouwd.</h2><p style="margin:0">Begin klein. Luister beter. Vraag duidelijker. Doe het opnieuw.</p></div>`:''}</section>`}
 
+function vLocked(n){
+  const w=WEEKS[n-1], p=prevWeek(n), pw=WEEKS[p-1];
+  if(!started()) return `<article class="sec" style="gap:28px"><header class="wkhead"><div class="kick">Week ${String(n).padStart(2,'0')} / 13</div><h1>${h(w.title)}.</h1></header><div class="card gate">${LOCK}<p style="margin:0"><b>Je run is nog niet gestart.</b> Start je 90 dagen om week 1 te openen.</p><div><button class="btn" type="button" data-start="1">Start mijn 90 dagen</button></div></div></article>`;
+  return `<article class="sec" style="gap:28px"><header class="wkhead"><div class="kick">Week ${String(n).padStart(2,'0')} / 13 · ${h(w.ph)}</div><h1>${h(w.title)}.</h1></header>
+  <div class="card gate">${LOCK}<p style="margin:0"><b>Deze week is nog dicht.</b> Hij gaat open zodra je week ${p} (${h(pw.title)}) hebt gelezen en de live training hebt gevolgd.</p><div class="cks">${checkRow(`w${p}|read`,'Hoofdstuk gelezen')}${checkRow(`w${p}|trained`,'Live training gevolgd')}</div><div><a class="btn" href="#week-${p}">Naar week ${p}</a></div></div></article>`}
+function gateHint(n){
+  const nx=nextWeek(n); if(!nx) return '';
+  return ready(n)?`<span class="okline">✓ ${nx===8?'De inhaalweek':'Week '+nx} is open.</span> <a href="#week-${nx}">Ga verder →</a>`:`Vink beide af om ${nx===8?'de inhaalweek':'week '+nx} te openen.`}
+function sessionBlock(n){
+  const ss=SESS.filter(x=>x.week===n); if(!ss.length) return '';
+  return ss.map(x=>{const past=new Date(x.starts_at)<new Date(Date.now()-2*36e5);
+    return `<div class="card livecard"><div class="mono">${past?'Live training · terugkijken':'Live training'}</div><b>${h(x.title)}</b><span class="muted">${fmtWhen(x.starts_at)}</span><div class="row">${!past&&x.join_url?`<a class="btn" href="${h(x.join_url)}" target="_blank" rel="noopener">Doe mee</a>`:''}${x.recording_url?`<a class="btn ${past?'':'ghost'}" href="${h(x.recording_url)}" target="_blank" rel="noopener">Bekijk de opname</a>`:past?'<span class="muted">Opname volgt</span>':''}</div></div>`}).join('')}
 function vWeek(n){
+  if(!isOpen(n)) return vLocked(n);
   const w=WEEKS[n-1], m=C&&C[w.mod], full=get('me|mode')!=='light', sc='w'+n;
   const pager=`<div class="pager">${n>1?`<a class="btn ghost" href="#week-${n-1}">← Week ${n-1}</a>`:'<span></span>'}${n<13?`<a class="btn ghost" href="#week-${n+1}">Week ${n+1} →</a>`:`<a class="btn ghost" href="#voortgang">Naar je voortgang →</a>`}</div>`;
   if(n===8){
-    return `<article class="sec" style="gap:40px"><header class="wkhead"><div class="row"><span class="pill on">${h(w.ph)}</span><span class="pill">Week 8 · ${weekRange(8)}</span></div><h1>Inhaalweek. Of rust.</h1><p class="muted" style="font-size:1.1rem">${h(w.sub)}</p></header>
+    return `<article class="sec" style="gap:40px"><header class="wkhead"><div class="row"><span class="pill on">${h(w.ph)}</span><span class="pill">Week 8${weekRange(8)?' · '+weekRange(8):''}</span></div><h1>Inhaalweek. Of rust.</h1><p class="muted" style="font-size:1.1rem">${h(w.sub)}</p></header>
     <section class="sec"><div class="f"><span class="lb">Wat haal ik in?</span><div class="scale">${[1,2,3,4,5,6,7].map(x=>`<label class="opt"><input type="checkbox" data-k="w8|in${x}" ${get('w8|in'+x)?'checked':''}><span>W${x}</span></label>`).join('')}</div></div>${text('w8|a','Wat wil ik inhalen?')}${text('w8|b','Hoe laad ik op?')}${text('w8|c','Mijn intentie voor de tweede helft')}
     <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" data-k="w8|done" ${get('w8|done')?'checked':''}><span class="box">✓</span></span><b>Inhaalweek afgerond</b></label></section>${pager}</article>`}
   const fi=FI[n]||[], oef=fi.filter(f=>f.p==='oef'), opdr=fi.filter(f=>f.p==='opdr');
   const slides=CANVA.deck[w.mod];
   let o=`<article class="sec" style="gap:40px">`;
-  o+=`<header class="wkhead"><div class="kick">Sales Foundations 90 · Week ${String(n).padStart(2,'0')} / 13 · ${h(w.ph)}</div><h1>${h(w.title)}.</h1><p style="font-size:1.15rem;margin:0">${h(w.sub)}</p><div class="row"><span class="pill">Week ${n} · ${weekRange(n)}</span><span class="pill">Training ${String(w.mod).padStart(2,'0')}</span></div></header>`;
-  o+=`<section class="sec"><div class="sechead"><h2>De training</h2><span class="mono">Maandag · live</span></div>${m?`<p style="font-size:1.12rem"><b>${h(m.thesis)}</b></p>`:''}
+  o+=`<header class="wkhead"><div class="kick">Sales Foundations 90 · Week ${String(n).padStart(2,'0')} / 13 · ${h(w.ph)}</div><h1>${h(w.title)}.</h1><p style="font-size:1.15rem;margin:0">${h(w.sub)}</p><div class="row"><span class="pill">Week ${n}${weekRange(n)?' · '+weekRange(n):''}</span><span class="pill">Training ${String(w.mod).padStart(2,'0')}</span></div></header>`;
+  o+=`<section class="sec"><div class="sechead"><h2>De training</h2><span class="mono">Live</span></div>${m?`<p style="font-size:1.12rem"><b>${h(m.thesis)}</b></p>`:''}
    <div class="row"><a class="btn" href="${slides}" target="_blank" rel="noopener">Open de presentatie</a><a class="btn ghost" href="${CANVA.boek}" target="_blank" rel="noopener">Cursusboek · hoofdstuk ${w.mod}</a></div>
    ${m?`<div class="cols2"><div><div class="mono" style="margin-bottom:8px">Na deze training kun je</div><ul class="list">${m.goals.map(g=>`<li>${h(g.replace(/;$|\.$/,''))}</li>`).join('')}</ul></div><div><div class="mono" style="margin-bottom:8px">Kernpunten</div><ul class="list">${m.kern.map(g=>`<li>${h(g)}</li>`).join('')}</ul></div></div>
    ${m.beeld?`<div class="card"><div class="mono">Het beeld van deze week</div><p style="margin:4px 0 0;font-size:1.15rem"><b>${h(sentence(m.beeld))}</b></p></div>`:''}`:''}
-   <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" data-k="${sc}|read" ${get(sc+'|read')?'checked':''}><span class="box">✓</span></span><span><b>Training gevolgd en hoofdstuk gelezen</b></span></label></section>`;
+   ${sessionBlock(n)}
+   <div class="gatebox"><div class="mono">Om verder te gaan</div>
+   <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" data-k="${sc}|read" ${get(sc+'|read')?'checked':''}><span class="box">✓</span></span><span><b>Hoofdstuk gelezen</b><br><span class="muted">Cursusboek, hoofdstuk ${w.mod}</span></span></label>
+   <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" data-k="${sc}|trained" ${get(sc+'|trained')?'checked':''}><span class="box">✓</span></span><span><b>Live training gevolgd</b><br><span class="muted">Live of via de opname</span></span></label>
+   <p class="muted gatehint" id="gatehint" data-w="${n}" style="margin:0">${gateHint(n)}</p></div></section>`;
   o+=`<section class="sec"><div class="sechead"><h2>Oefening in de ruimte</h2></div>${m?`<p>${h(m.oef)}</p>`:''}${oef.map(f=>fiche(sc,f)).join('')}</section>`;
   o+=`<section class="sec"><div class="sechead"><h2>De weekopdracht</h2>${full?'':'<span class="pill">Light · optioneel</span>'}</div><details ${full?'open':''}><summary>${full?'Weekopdracht en fiche':'Toon de weekopdracht'}</summary><div class="sec" style="margin-top:10px">${m?`<p>${h(m.opdr)}</p>`:''}${opdr.map(f=>fiche(sc,f)).join('')}</div></details></section>`;
   o+=`<section class="sec"><div class="sechead"><h2>De gewoonte</h2><span class="mono" id="wkcount"></span></div><p class="q">${h(w.gew)}</p><div class="track" style="max-width:320px"><i id="wkbar"></i></div>${trackerHtml(n,w)}</section>`;
@@ -451,7 +503,7 @@ function vVoortgang(){
 function vMateriaal(){
   return `<div class="sec" style="gap:32px"><div><div class="kick">Alles bij elkaar</div><h1>Materiaal</h1></div>
   <section class="sec"><div class="sechead"><h2>Boeken</h2></div><div class="mat"><a href="${CANVA.boek}" target="_blank" rel="noopener">Cursusboek · de theorie</a><a href="${CANVA.werkboek}" target="_blank" rel="noopener">Werkboek · papieren versie</a></div></section>
-  <section class="sec"><div class="sechead"><h2>Presentaties</h2></div><div class="mat">${WEEKS.filter(w=>w.mod).map(w=>`<a href="${CANVA.deck[w.mod]}" target="_blank" rel="noopener">${String(w.mod).padStart(2,'0')} · ${h(w.title)}</a>`).join('')}<a href="${CANVA.deck.bonus}" target="_blank" rel="noopener">Bonus · het brand partner-gesprek</a></div></section>
+  <section class="sec"><div class="sechead"><h2>Presentaties</h2></div><div class="mat">${WEEKS.filter(w=>w.mod).map(w=>isOpen(w.n)?`<a href="${CANVA.deck[w.mod]}" target="_blank" rel="noopener">${String(w.mod).padStart(2,'0')} · ${h(w.title)}</a>`:`<span class="lockedmat">${String(w.mod).padStart(2,'0')} · ${h(w.title)}${LOCK}</span>`).join('')}<a href="${CANVA.deck.bonus}" target="_blank" rel="noopener">Bonus · het brand partner-gesprek</a></div></section>
   <section class="sec"><div class="sechead"><h2>Het ritme</h2></div><div class="rules">${[['Maandag','Weekfocus in de groep. Lees je opdracht.'],['Woensdag','Check-in: waar loop je vast?'],['Vrijdag','Deel je wins. Ook kleine.'],['Zondag','Vul je scorebord in.']].map(([d,t])=>`<div><b>${d}</b> · ${t}</div>`).join('')}</div>
    <p class="muted">Elke week heeft drie onderdelen: de training, de weekopdracht en de gewoonte, één kleine actie per dag.</p></section>
   <section class="sec"><div class="sechead"><h2>Drie spelregels</h2></div><div class="rules">

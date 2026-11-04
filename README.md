@@ -10,6 +10,13 @@ De digitale cursus Sales Foundations 90: 13 weken met trainingen, opdrachten, da
 - De deelnemer ziet op het inlogscherm en onder Voortgang dat de begeleider meekijkt.
 - Wachtwoorden zijn gehasht met bcrypt. De sessie zit in een HttpOnly-cookie (Secure in productie). Uitschakelen of een wachtwoordwijziging beëindigt andere sessies direct. Inloggen is beperkt tot 8 mislukte pogingen per 15 minuten. Schrijfacties vragen een extra header als CSRF-slot, en er staat een strikte Content-Security-Policy.
 
+## Hoe de cursus loopt
+
+- **Dag 1 is de dag waarop de deelnemer zelf start.** Op Vandaag staat de knop *Start mijn 90 dagen*. De server legt die datum vast, de deelnemer kan hem niet zelf aanpassen. Jij kunt de start terugzetten onder Beheer.
+- **Weken gaan stap voor stap open.** Week 2 opent pas als de deelnemer in week 1 heeft aangevinkt dat het hoofdstuk gelezen is én dat de live training gevolgd is. Week 9 volgt op week 7, de inhaalweek staat ertussen. Onder Beheer kun je per deelnemer een week handmatig openen (bijvoorbeeld als iemand de training live deed maar niets aanvinkte).
+- **Live trainingen en opnames** zet je onder **Live** (alleen de beheerder ziet het formulier): titel, datum en tijd, bij welke week het hoort, de link om mee te doen en later de link naar de opname (Zoom, Meet, YouTube, Vimeo, enz.). Deelnemers zien de eerstvolgende training op Vandaag, de training en opname bij de week, en alles samen onder Live. Er worden geen video's in de app geüpload, alleen links.
+- Let op: het aanvinken van *gelezen* en *training gevolgd* doen deelnemers zelf. De inhoud zit in de app zelf, dus dit is een route en geen harde beveiliging.
+
 ## Online zetten (ongeveer 15 minuten)
 
 ### 1. Database: MongoDB Atlas (gratis)
@@ -33,7 +40,7 @@ Het gratis Render-plan gaat na een tijd stilstand slapen. De eerste aanvraag daa
 
 ### 3. Deelnemers uitnodigen
 
-Ga naar **Deelnemers**, vul naam en e-mailadres in en kopieer de uitnodigingslink. Stuur die persoonlijk door.  Zonder geldige link kan niemand een account maken.
+Ga naar **Beheer**, vul naam en e-mailadres in en kopieer de uitnodigingslink. Stuur die persoonlijk door.  Zonder geldige link kan niemand een account maken.
 
 ## Lokaal draaien
 
@@ -75,7 +82,7 @@ frontend/   statische app (vanilla JS), wordt door FastAPI geserveerd
 tools/      bouwscript voor de frontend + bron van de cursusinhoud
 ```
 
-`frontend/` is gegenereerd uit `tools/src/app.html`, `tools/src/course.json`, `tools/state.js` en `tools/tail.js` met `python3 tools/build.py`. Pas de cursusinhoud aan in `tools/src/course.json` en bouw opnieuw.
+`frontend/` is gegenereerd uit `tools/src/app.html`, `tools/src/course.json`, `tools/state.js`, `tools/live.js` en `tools/tail.js` met `python3 tools/build.py`. Pas de cursusinhoud aan in `tools/src/course.json` en bouw opnieuw.
 
 ## Omgevingsvariabelen
 

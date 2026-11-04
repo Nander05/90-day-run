@@ -12,13 +12,24 @@ function accountHtml(){
   </form></section>`}
 
 /* ---- router ---- */
-const NAV=[['start','Vandaag'],['reis','Reis'],['mijn-90','Mijn 90'],['voortgang','Voortgang'],['materiaal','Materiaal']];
+const SKEL='<div class="skel" aria-label="Laden"><i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i></div>';
+let LASTKEY='';
+function enter(key){const m=mainEl(); if(key===LASTKEY) return; LASTKEY=key; m.classList.remove('enter'); void m.offsetWidth; m.classList.add('enter'); setTimeout(()=>m.classList.remove('enter'),900)}
+const NAV=[['start','Vandaag'],['reis','Reis'],['live','Live'],['mijn-90','Mijn 90'],['voortgang','Voortgang'],['materiaal','Materiaal']];
+const ICONS={start:'<path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4v-5H9v5H5a1 1 0 0 1-1-1z"/>',
+ reis:'<path d="M5 20V4M5 5h11l-2 3.5L16 12H5"/>',
+ live:'<circle cx="12" cy="12" r="2.2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/>',
+ 'mijn-90':'<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11"/>',
+ voortgang:'<path d="M5 20V10M12 20V4M19 20v-7"/>',
+ materiaal:'<path d="M4 7a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/>',
+ beheer:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.8M17.5 14.5a5 5 0 0 1 3 4.5"/>'};
+const navItem=(href,id,l,active)=>`<a href="${href}" ${id===active?'aria-current="page"':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]||''}</svg><span>${l}</span></a>`;
 const mainEl=()=>document.getElementById('app');
 function chrome(){document.body.classList.toggle('anon',!ME);document.getElementById('lo').hidden=!ME}
 function setNav(active){
   const prefix=VIEW?'deelnemer-'+VIEW.id+'-':'';
-  const items=NAV.concat(ME&&ME.role==='admin'&&!VIEW?[['beheer','Deelnemers']]:[]);
-  document.getElementById('nav').innerHTML=ME?items.map(([id,l])=>`<a href="#${prefix}${id}" ${id===active?'aria-current="page"':''}>${l}</a>`).join(''):'';
+  const items=NAV.concat(ME&&ME.role==='admin'&&!VIEW?[['beheer','Beheer']]:[]);
+  document.getElementById('nav').innerHTML=ME?items.map(([id,l])=>navItem('#'+prefix+id,id,l,active)).join(''):'';
 }
 function viewFor(raw){
   let r=raw,anchor='',v;
@@ -29,6 +40,7 @@ function viewFor(raw){
   else if(r==='mijn-90') v=vMijn();
   else if(r==='voortgang') v=vVoortgang();
   else if(r==='materiaal') v=vMateriaal();
+  else if(r==='live') v=vLive();
   else {r='start';v=vStart()}
   return {r,v,anchor};
 }
@@ -39,6 +51,7 @@ function draw(raw,prefix){
     html=html.replace(/href="#(?!deelnemer)/g,'href="#'+prefix);
     html=`<div class="viewas"><span>Je bekijkt het boek van <b>${h(VIEW.name)}</b>. Alleen lezen.</span><a class="btn ghost" href="#beheer">← Alle deelnemers</a></div>`+html;
   }
+  enter(prefix+raw);
   mainEl().innerHTML=html;
   if(prefix) mainEl().querySelectorAll('input,textarea,select,button[data-day]').forEach(e=>{e.disabled=true});
   setNav(r.startsWith('week')||r==='bonus'?'reis':r);
@@ -55,7 +68,7 @@ async function route(){
   if(!ME) return showLogin();
   const vm=raw.match(/^deelnemer-([0-9a-f]{24})(?:-(.+))?$/);
   if(vm&&ME.role==='admin'){
-    mainEl().innerHTML='<p class="muted">Laden…</p>';
+    mainEl().innerHTML=SKEL;
     try{
       if(!VIEW||VIEW.id!==vm[1]){
         const r=await api('GET','/admin/participants/'+vm[1]+'/progress');
@@ -66,12 +79,18 @@ async function route(){
     return draw(vm[2]||'start','deelnemer-'+vm[1]+'-');
   }
   VIEW=null;
+  if(raw==='live') await loadSessions();
+  else if(ME.role==='member'){ // toegang kan door de beheerder zijn aangepast
+    const wm=raw.match(/^week-(\d+)/);
+    if(raw==='reis'||raw==='start'||(wm&&!isOpen(+wm[1]))) await refreshAccess();
+  }
+  if(my!==seq) return;
   if(raw==='beheer'){
     if(ME.role!=='admin'){location.hash='#start';return}
-    mainEl().innerHTML='<p class="muted">Laden…</p>';
+    mainEl().innerHTML=SKEL;
     let html; try{html=await vBeheer()}catch(e){html=`<p class="err">${h(e.message)}</p>`}
     if(my!==seq) return;
-    mainEl().innerHTML=html; setNav('beheer'); paint(); window.scrollTo(0,0); return;
+    enter('beheer'); mainEl().innerHTML=html; setNav('beheer'); paint(); window.scrollTo(0,0); return;
   }
   draw(raw,'');
 }
@@ -81,6 +100,7 @@ function paint(){
   document.getElementById('hpl').textContent=(c.state==='run'?'Dag '+Math.min(90,c.i+1)+' · ':'')+p+'%';
   document.getElementById('hpb').style.width=p+'%';
   const st=document.getElementById('stats'); if(st) st.innerHTML=statsHtml();
+  const gh=document.getElementById('gatehint'); if(gh) gh.innerHTML=gateHint(+gh.dataset.w);
   const m=(location.hash||'').match(/week-(\d+)(?:-evaluatie)?$/);
   if(m){const n=+m[1],d=wd(n),b=document.getElementById('wkbar'),t=document.getElementById('wkcount'); if(b) b.style.width=d/7*100+'%'; if(t) t.textContent=d+' van 7 dagen'}
 }
@@ -100,8 +120,10 @@ async function vBeheer(){
     return `<article class="card pcard"><div class="row"><b style="font-size:1.1rem">${h(p.name)}</b><span class="pill ${status[1]}">${status[0]}</span><span class="pill">${p.mode==='light'?'Light':'Full'}</span></div>
     <div class="muted">${h(p.email)} · laatst actief ${ago(p.updated_at||p.last_login)}</div>
     <div class="row"><div class="track" style="width:160px"><i style="width:${p.days/p.days_total*100}%"></i></div><span class="mono">${p.days} / ${p.days_total} dagen · ${p.weeks_done} / 13 weken</span></div>
+    <div class="muted">${p.start?'Gestart op '+fmt(new Date(p.start+'T00:00:00'))+' · dag '+Math.max(1,Math.min(90,Math.round((day0(new Date())-new Date(p.start+'T00:00:00'))/864e5)+1)):'Nog niet gestart'} · gelezen ${p.weeks_read} · training ${p.weeks_trained}</div>
+    <div class="row"><label class="lb" for="un-${p.id}" style="margin:0">Toegang</label><select id="un-${p.id}" data-unlock="${p.id}" style="width:auto"><option value="-1">Automatisch (na lezen en training)</option>${Array.from({length:13},(_,i)=>`<option value="${i+1}" ${p.unlock_to===i+1?'selected':''}>Open t/m week ${i+1}</option>`).join('')}</select></div>
     ${p.goal?`<p style="margin:0"><span class="mono">Doel</span><br>${h(p.goal)}</p>`:''}
-    <div class="row"><a class="btn sm" href="#deelnemer-${p.id}-start">Bekijk boek</a><button class="btn ghost sm" type="button" data-act="invite" data-id="${p.id}" data-name="${h(p.name)}">Nieuwe link</button><button class="btn ghost sm" type="button" data-act="toggle" data-id="${p.id}" data-active="${p.active?1:0}">${p.active?'Uitschakelen':'Activeren'}</button><button class="btn ghost sm" type="button" data-act="del" data-id="${p.id}">Verwijderen</button></div></article>`}).join('');
+    <div class="row"><a class="btn sm" href="#deelnemer-${p.id}-start">Bekijk boek</a><button class="btn ghost sm" type="button" data-act="invite" data-id="${p.id}" data-name="${h(p.name)}">Nieuwe link</button>${p.start?`<button class="btn ghost sm" type="button" data-act="resetstart" data-id="${p.id}">Start terugzetten</button>`:''}<button class="btn ghost sm" type="button" data-act="toggle" data-id="${p.id}" data-active="${p.active?1:0}">${p.active?'Uitschakelen':'Activeren'}</button><button class="btn ghost sm" type="button" data-act="del" data-id="${p.id}">Verwijderen</button></div></article>`}).join('');
   return `<div class="sec" style="gap:28px"><div><div class="kick">Alleen voor de beheerder</div><h1>Deelnemers</h1></div>
   <form id="addform" class="card sec" novalidate><div class="mono">Nieuwe deelnemer</div>
    <div class="cols2"><div class="f"><label class="lb" for="ad-name">Naam</label><input id="ad-name" name="name" type="text" autocomplete="off"></div><div class="f"><label class="lb" for="ad-email">E-mail</label><input id="ad-email" name="email" type="email" autocomplete="off"></div></div>
@@ -113,6 +135,10 @@ async function adminAction(a){
   try{
     if(act==='refresh') return route();
     if(act==='invite'){const r=await api('POST','/admin/participants/'+id+'/invite'); LASTLINK={name:a.dataset.name,url:location.origin+'/#uitnodiging-'+r.invite_token}; route()}
+    else if(act==='resetstart'){
+      if(a.dataset.armed!=='1'){a.dataset.armed='1';a.textContent='Zeker weten? Dag 1 begint opnieuw';return}
+      await api('PATCH','/admin/participants/'+id,{reset_start:true}); route();
+    }
     else if(act==='toggle'){await api('PATCH','/admin/participants/'+id,{active:a.dataset.active!=='1'}); route()}
     else if(act==='del'){
       if(a.dataset.armed!=='1'){a.dataset.armed='1';a.textContent='Zeker weten? Alles wordt gewist';return}
@@ -127,7 +153,7 @@ async function copyText(btn){
 
 /* ---- inloggen ---- */
 function showLogin(msg){
-  chrome(); setNav('');
+  chrome(); setNav(''); LASTKEY='';
   mainEl().innerHTML=`<div class="auth"><div><div class="kick">Sales Foundations 90</div><h1>90 Day Run</h1></div>
   <form id="loginform" class="sec" novalidate>
    <div class="f"><label class="lb" for="li-email">E-mail</label><input id="li-email" name="email" type="email" autocomplete="username"></div>
@@ -137,7 +163,8 @@ function showLogin(msg){
   <p class="muted">Nog geen account? Je krijgt een persoonlijke link van Nander.</p>
   <p class="muted small">Alleen jij en je begeleider kunnen jouw boek zien. Andere deelnemers zien niets van jou.</p></div>`;
 }
-async function loadOwn(){const p=await api('GET','/me/progress'); OWN=p.d||{}}
+async function refreshAccess(){try{const p=await api('GET','/me/progress'); ACCESS=p.access||ACCESS}catch(e){}}
+async function loadOwn(){const p=await api('GET','/me/progress'); OWN=p.d||{}; ACCESS=p.access||{unlock_to:null}; await loadSessions()}
 async function doLogin(f){
   const err=document.getElementById('lerr'),btn=f.querySelector('button'); err.textContent=''; btn.disabled=true;
   try{
@@ -147,7 +174,7 @@ async function doLogin(f){
 }
 async function showInvite(token){
   chrome(); setNav('');
-  mainEl().innerHTML='<div class="auth"><p class="muted">Laden…</p></div>';
+  mainEl().innerHTML='<div class="auth">'+SKEL+'</div>';
   let info; try{info=await api('GET','/auth/invite/'+encodeURIComponent(token))}
   catch(e){mainEl().innerHTML=`<div class="auth"><h1>Link niet geldig</h1><p>${h(e.message)}</p><a class="btn ghost" href="#start" data-reload="1">Naar inloggen</a></div>`;return}
   mainEl().innerHTML=`<div class="auth"><div><div class="kick">Welkom bij de 90 Day Run</div><h1>Hallo ${h(info.name)}</h1></div>
@@ -165,7 +192,7 @@ async function doInvite(f){
   btn.disabled=true;
   try{
     ME=await api('POST','/auth/accept-invite',{token:f.dataset.token,password:f.pw.value});
-    await loadOwn(); history.replaceState(null,'','#mijn-90'); route();
+    await loadOwn(); history.replaceState(null,'','#start'); route();
   }catch(e){err.textContent=e.message;btn.disabled=false}
 }
 async function doPassword(f){
@@ -184,7 +211,7 @@ async function doAdd(f){
 async function logout(){
   await flush(true);
   try{await api('POST','/auth/logout')}catch(e){}
-  ME=null;OWN={};VIEW=null;LASTLINK=null;
+  ME=null;OWN={};VIEW=null;LASTLINK=null;ACCESS={unlock_to:null};SESS=[];EDITING=null;
   history.replaceState(null,'','#start'); showLogin();
 }
 
@@ -199,6 +226,8 @@ document.addEventListener('click',e=>{
     if(d.id==='todaybtn'){const r=document.querySelector('.ringsvg'); if(r){const t=document.createElement('div'); t.innerHTML=ring(); r.replaceWith(t.firstChild)}}
     return;
   }
+  const st=e.target.closest('[data-start]'); if(st&&!VIEW) return startRun(st);
+  const sa=e.target.closest('[data-sess]'); if(sa) return sessAction(sa);
   const a=e.target.closest('[data-act]'); if(a) return adminAction(a);
   const c=e.target.closest('[data-copy]'); if(c) return copyText(c);
   if(e.target.closest('#lo')||e.target.closest('[data-logout]')) return logout();
@@ -210,6 +239,16 @@ document.addEventListener('submit',e=>{
   else if(f.id==='inviteform') doInvite(f);
   else if(f.id==='pwform') doPassword(f);
   else if(f.id==='addform') doAdd(f);
+  else if(f.id==='sessform') saveSession(f);
+});
+async function startRun(b){
+  b.disabled=true;
+  try{const r=await api('POST','/me/start'); OWN['me|start']=r.start; location.hash==='#start'?route():(location.hash='#start')}
+  catch(e){b.disabled=false; b.textContent=e.message}
+}
+document.addEventListener('change',async e=>{
+  const u=e.target.closest&&e.target.closest('[data-unlock]'); if(!u) return;
+  try{await api('PATCH','/admin/participants/'+u.dataset.unlock,{unlock_to:+u.value}); status('Opgeslagen')}catch(err){u.title=err.message}
 });
 function onField(e){
   const el=e.target; if(VIEW||!el.dataset||!el.dataset.k) return;
@@ -229,6 +268,7 @@ document.addEventListener('visibilitychange',async()=>{
   if(!ME||VIEW||Object.keys(pend.set).length||pend.unset.size||inflight) return;
   try{
     const p=await api('GET','/me/progress');
+    ACCESS=p.access||ACCESS;
     if(!same(p.d||{},OWN)&&!document.activeElement.matches('input,textarea,select')){const y=scrollY; OWN=p.d||{}; await route(); scrollTo(0,y)}
   }catch(e){}
 });

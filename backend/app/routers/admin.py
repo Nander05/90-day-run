@@ -21,6 +21,8 @@ class NewParticipant(BaseModel):
 class ParticipantPatch(BaseModel):
     active: bool | None = None
     name: str | None = Field(default=None, min_length=1, max_length=80)
+    unlock_to: int | None = Field(default=None, ge=-1, le=13)  # -1 = override weghalen
+    reset_start: bool | None = None
 
 
 def _member(oid):
@@ -55,6 +57,7 @@ def _row(user, prog_doc):
         "created_at": iso(user.get("created_at")),
         "last_login": iso(user.get("last_login")),
         "updated_at": iso((prog_doc or {}).get("updated_at")),
+        "unlock_to": user.get("unlock_to"),
         **summarize(d),
     }
 
@@ -117,6 +120,16 @@ def patch_participant(pid: str, body: ParticipantPatch):
     if body.name is not None:
         changes["name"] = body.name.strip()
     update = {"$set": changes} if changes else {}
+    unset = {}
+    if body.unlock_to is not None:
+        if body.unlock_to < 0:
+            unset["unlock_to"] = ""
+        else:
+            update.setdefault("$set", {})["unlock_to"] = body.unlock_to
+    if unset:
+        update["$unset"] = unset
+    if body.reset_start:
+        get_db().progress.update_one({"user_id": user["_id"]}, {"$unset": {"d.me|start": ""}})
     if body.active is False:
         update["$inc"] = {"token_ver": 1}  # lopende sessies vervallen meteen
     if update:

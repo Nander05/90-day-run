@@ -1,8 +1,8 @@
 'use strict';
 const C = window.COURSE;
-const START = new Date(2026,10,2);
 const MON = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 const DOW = ['ma','di','wo','do','vr','za','zo'];
+const WD = ['zo','ma','di','wo','do','vr','za']; // JS getDay()
 const CANVA = {
   boek:'https://www.canva.com/d/FLQwrdqrsrgChG6', werkboek:'https://www.canva.com/d/yQkxHvn4feoyMD6',
   deck:{1:'https://www.canva.com/d/_iyDooGlxYkcD5f',2:'https://www.canva.com/d/IpcLvhq28_Y5oKW',3:'https://www.canva.com/d/lIph8V1t7B7ie5l',4:'https://www.canva.com/d/rcNuvHcXL_ZbZ8w',5:'https://www.canva.com/d/Z5D1vu1jyCGZMCi',6:'https://www.canva.com/d/rEsAZMr2e1NkE-P',7:'https://www.canva.com/d/0lk0AN28vm7jn8D',8:'https://www.canva.com/d/YTxr3OkqIhTOhZ8',9:'https://www.canva.com/d/ZVKxbsl85hvu4Tz',10:'https://www.canva.com/d/q9miVfWupH0tpxl',11:'https://www.canva.com/d/UoIljVZDmTzvrHH',12:'https://www.canva.com/d/40iRUnFrc5jwGT3',bonus:'https://www.canva.com/d/jfp7FP_lNjS_xko'}
@@ -16,7 +16,7 @@ const WEEKS = [
  W(5,5,'Zichtbaarheid','Zet de lijnen op het veld','Het gesprek openen: agenda, exit en rapport.','Elke dag één Story of post met een vraag.','Elke dag zichtbaar.','Hoe voelde de exit voor de ander?'),
  W(6,6,'Zichtbaarheid','Begrijp eerst, adviseer daarna','Discovery, de vier W-vragen en de teach back.','Elke dag één Story of post met een vraag.','Elke dag zichtbaar.','Welke tegenstrijdigheid hoorde je?'),
  W(7,7,'Zichtbaarheid','Waar wil je naartoe?','Verlangen, impact en eerlijke urgentie.','Elke dag één Story of post met een vraag.','Elke dag zichtbaar.','Welk antwoord was het meest concreet?'),
- W(8,0,'Kerst','Inhaalweek','Kerstweek. Geen nieuwe module. Haal in wat bleef liggen, of laad op voor de tweede helft.','','',''),
+ W(8,0,'Inhaal','Inhaalweek','Geen nieuwe module. Haal in wat bleef liggen, of laad op voor de tweede helft.','','',''),
  W(9,8,'Zichtbaarheid','Minder zeggen, meer helpen','Een oplossing eenvoudig en relevant presenteren.','Elke dag één Story of post met een vraag.','Elke dag zichtbaar.','Hoeveel kon je schrappen?'),
  W(10,9,'Uitnodigen','Durf de vraag te stellen','Beslissingen begeleiden, prijs en commitment.','Elke dag één opvolging.','Elke dag één opvolging.','Hoeveel duidelijke beslissingen?'),
  W(11,10,'Uitnodigen','Twijfel is informatie','Bezwaren erkennen, onderzoeken en opnieuw vragen.','Elke dag één opvolging.','Elke dag één opvolging.','Welk bezwaar kwam het vaakst?'),
@@ -119,7 +119,7 @@ const BONUS = {
 };
 
 /* ---- server en opslag ---- */
-let ME=null, OWN={}, VIEW=null; // ME: ingelogde gebruiker, OWN: eigen boek, VIEW: boek van een deelnemer (beheerder, alleen lezen)
+let ME=null, OWN={}, VIEW=null, ACCESS={unlock_to:null}, SESS=[]; // ME: ingelogde gebruiker, OWN: eigen boek, VIEW: boek van een deelnemer (beheerder, alleen lezen)
 const get=k=>(VIEW?VIEW.d:OWN)[k];
 async function api(method,path,body,keepalive){
   const r=await fetch('/api'+path,{method,credentials:'same-origin',keepalive:!!keepalive,
@@ -163,9 +163,25 @@ const sentence=s=>s?s[0]+s.slice(1).toLowerCase():'';
 const day0=d=>new Date(d.getFullYear(),d.getMonth(),d.getDate());
 const addDays=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
 const fmt=d=>d.getDate()+' '+MON[d.getMonth()];
-const todayIdx=()=>Math.round((day0(new Date())-START)/864e5);
-const weekRange=n=>fmt(addDays(START,(n-1)*7))+' – '+fmt(addDays(START,(n-1)*7+6));
-function current(){const i=todayIdx(); if(i<0) return {i,w:1,d:0,state:'before'}; if(i>90) return {i,w:13,d:6,state:'after'}; return {i,w:Math.min(13,Math.floor(i/7)+1),d:Math.min(6,i%7),state:'run'}}
+/* Dag 1 is de dag waarop de deelnemer zelf start (me|start, door de server gezet). */
+const startD=()=>{const m=String(get('me|start')||'').match(/^(\d{4})-(\d\d)-(\d\d)$/);return m?new Date(+m[1],+m[2]-1,+m[3]):null};
+const started=()=>!!startD();
+const todayIdx=()=>{const s=startD();return s?Math.round((day0(new Date())-s)/864e5):null};
+const dayDate=(n,i)=>{const s=startD();return s?addDays(s,(n-1)*7+i):null};
+const weekRange=n=>{const s=startD();return s?fmt(addDays(s,(n-1)*7))+' – '+fmt(addDays(s,(n-1)*7+6)):''};
+function current(){const i=todayIdx(); if(i==null) return {i:-1,w:1,d:0,state:'new'}; if(i>90) return {i,w:13,d:6,state:'after'}; const j=Math.max(0,i); return {i:j,w:Math.min(13,Math.floor(j/7)+1),d:Math.min(6,j%7),state:'run'}}
+
+/* ---- toegang: een week gaat open als de vorige gelezen en de training gevolgd is ---- */
+const prevWeek=n=>n===9?7:n-1;
+const nextWeek=n=>n===7?8:n<13?n+1:0;
+const ready=n=>!!(get(`w${n}|read`)&&get(`w${n}|trained`));
+function isOpen(n){
+  if(VIEW) return true;
+  if(!started()) return false;
+  if(ACCESS.unlock_to!=null&&n<=ACCESS.unlock_to) return true;
+  return n===1||ready(prevWeek(n));
+}
+function frontier(){for(const n of HABIT) if(isOpen(n)&&!ready(n)) return n; return 0}
 
 /* ---- metrics ---- */
 const wd=n=>{let c=0;for(let i=0;i<7;i++) if(get(`w${n}|d${i}`)) c++;return c};
@@ -215,31 +231,50 @@ function ring(){
     t+=`<line class="tk ${cls}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`}
   return `<svg class="ringsvg" viewBox="0 0 220 220" role="img" aria-label="Negentig dagen, ${n} voorbij">${t}<text class="ringlab" x="110" y="84" text-anchor="middle">DAG</text><text class="ringnum" x="110" y="144" text-anchor="middle">${n||'–'}</text><text class="ringlab" x="110" y="166" text-anchor="middle">VAN 90</text></svg>`}
 
+const LOCK='<svg class="lockic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+const checkRow=(k,label)=>`<span class="ck ${get(k)?'on':''}"><i>${get(k)?'✓':''}</i>${label}</span>`;
+function gateCard(n){
+  const nx=nextWeek(n);
+  return `<div class="card gate"><div class="mono">Volgende stap · week ${n}</div><div class="cks">${checkRow(`w${n}|read`,'Hoofdstuk gelezen')}${checkRow(`w${n}|trained`,'Live training gevolgd')}</div><p class="muted" style="margin:0">Vink je beide af${nx?`, dan gaat ${nx===8?'de inhaalweek':'week '+nx} open`:''}.</p><div><a class="btn" href="#week-${n}">Naar week ${n}</a></div></div>`}
+function liveCard(){
+  const s=nextSession(); if(!s) return '';
+  return `<div class="card livecard"><div class="mono">Volgende live training</div><b style="font-size:1.1rem">${h(s.title)}</b><span class="muted">${fmtWhen(s.starts_at)}</span><div class="row">${s.join_url?`<a class="btn" href="${h(s.join_url)}" target="_blank" rel="noopener">Doe mee</a>`:''}<a class="btn ghost" href="#live">Alle trainingen</a></div></div>`}
+function vWelcome(){
+  return `<div class="sec" style="gap:28px"><div class="hero">${ring()}<div class="sec"><div class="kick">Sales Foundations 90</div><h1>Klaar om te starten?</h1>
+  <p style="font-size:1.1rem;margin:0">Dag 1 begint op het moment dat jij op start drukt. Je leest week 1, volgt de live training en daarna gaat week 2 open. Zo bepaal jij je eigen tempo.</p>
+  <div class="row"><button class="btn big-btn" type="button" data-start="1">Start mijn 90 dagen</button><a class="btn ghost" href="#mijn-90">Eerst mijn doel opschrijven</a></div></div></div>${liveCard()}</div>`}
 function vStart(){
-  const c=current(), w=WEEKS[c.w-1], name=get('me|naam');
+  const c=current();
+  if(c.state==='new'&&!VIEW) return vWelcome();
+  const fw=frontier(), w=WEEKS[(fw||c.w)-1], name=get('me|naam');
   let head, action='';
-  if(c.state==='before'){const dd=-c.i; head=`<div class="kick">De run start op ${fmt(START)}</div><h1>Nog ${dd} ${dd===1?'dag':'dagen'}</h1>`}
+  if(c.state==='new') head=`<div class="kick">Nog niet gestart</div><h1>Run nog niet begonnen</h1>`;
   else if(c.state==='after'){head=`<div class="kick">Dag 90</div><h1>Dit heb jij gebouwd</h1>`}
-  else head=`<div class="kick">${DOW[(c.i%7)]} ${fmt(addDays(START,c.i))} · week ${c.w} · ${h(w.ph)}</div><h1>${h(w.title)}</h1>`;
+  else head=`<div class="kick">${WD[addDays(startD(),c.i).getDay()]} ${fmt(addDays(startD(),c.i))} · dag ${c.i+1} van 90</div><h1>${h(w.title)}</h1><p class="muted" style="margin:0">Week ${w.n} · ${h(w.ph)}</p>`;
   if(c.state==='run'){
+    const cw=WEEKS[c.w-1];
     if(c.w===8) action=`<a class="today" href="#week-8" style="text-decoration:none"><span class="box" style="border-color:var(--accent)"></span><span><b>Inhaalweek.</b><br><span class="muted">Haal in wat bleef liggen, of laad op voor de tweede helft.</span></span></a>`;
-    else{const k=`w${c.w}|d${c.d}`; action=`<button class="today" id="todaybtn" data-day="${k}" aria-pressed="${get(k)?'true':'false'}"><span class="box">✓</span><span><b id="todaylab">${get(k)?'Vandaag gedaan':'Vandaag afvinken'}</b><br><span class="muted">${h(w.gew)}</span></span></button>`}}
+    else if(!isOpen(c.w)) action=`<a class="today lockedtoday" href="#week-${c.w}" style="text-decoration:none">${LOCK}<span><b>Week ${c.w} is nog dicht.</b><br><span class="muted">Rond eerst week ${prevWeek(c.w)} af: lezen en de training volgen.</span></span></a>`;
+    else{const k=`w${c.w}|d${c.d}`; action=`<button class="today" id="todaybtn" data-day="${k}" aria-pressed="${get(k)?'true':'false'}"><span class="box">✓</span><span><b id="todaylab">${get(k)?'Vandaag gedaan':'Vandaag afvinken'}</b><br><span class="muted">${h(cw.gew)}</span></span></button>`}}
   const first=!get('me|doel')?`<div class="card"><div class="mono">Eerste stap</div><p style="margin:6px 0 12px"><b>Schrijf je doel voor dag 90 op.</b> Het is het enige dat je nodig hebt om te starten.</p><a class="btn" href="#mijn-90">Mijn 90 dagen invullen</a></div>`:`<div class="card"><div class="mono">Mijn doel${name?' · '+h(name):''}</div><p style="margin:6px 0 0;font-size:1.1rem">${h(get('me|doel'))}</p></div>`;
-  return `<div class="sec"><div class="hero">${ring()}<div class="sec">${head}${action}<div class="row"><a class="btn ghost" href="#week-${c.w}">Open week ${c.w}</a><a class="btn ghost" href="#reis">Hele reis</a></div></div></div>
-  ${first}
+  return `<div class="sec"><div class="hero">${ring()}<div class="sec">${head}${action}<div class="row"><a class="btn ghost" href="#week-${fw||c.w}">Open week ${fw||c.w}</a><a class="btn ghost" href="#reis">Hele reis</a></div></div></div>
+  ${fw?gateCard(fw):''}${liveCard()}${first}
   <div class="stats" id="stats"></div></div>`}
 function statsHtml(){return `<div><span class="mono">Gewoonte-dagen</span><b>${totalDays()}<span class="muted" style="font-size:1rem"> / 84</span></b></div><div><span class="mono">Reeks</span><b>${streak()}</b></div><div><span class="mono">Weken afgerond</span><b>${weeksDone()}<span class="muted" style="font-size:1rem"> / 13</span></b></div>`}
 
 function vReis(){
   const phases=[['Fundament','Jezelf: je houding, je rust en je respect voor de keuze van de ander.',[1,2,3,4]],['Zichtbaarheid','Gesprekken starten en echt begrijpen.',[5,6,7,8,9]],['Uitnodigen','Durven vragen, twijfel onderzoeken en opvolgen tot de lus gesloten is.',[10,11,12,13]]];
-  return `<div class="sec"><div><div class="kick">13 weken · één route</div><h1>De reis</h1></div>`+phases.map(([p,d,ws])=>`<section class="phase"><div class="sechead"><h2>${p}</h2><span class="muted">${d}</span></div>${ws.map(n=>{const w=WEEKS[n-1],c=wd(n),r=n===8;
-    return `<a class="wk ${r?'rest':''}" href="#week-${n}"><span class="n">${String(n).padStart(2,'0')}</span><span><span class="t">${h(w.title)}</span><br><span class="mono">${weekRange(n)}${get(`w${n}|done`)?' · afgerond':''}</span></span>${r?`<span class="pill">Kerst</span>`:`<span class="track" title="${c} van 7 dagen"><i style="width:${c/7*100}%"></i></span>`}</a>${EVALS[n]?`<a class="pill evmark ${get('ev'+EVALS[n].d+'|score')?'on':''}" href="#week-${n}-evaluatie" data-ev="1">Dag ${EVALS[n].d} · evaluatie</a>`:''}`}).join('')}</section>`).join('')+
+  const banner=!started()&&!VIEW?`<div class="card gate"><div class="mono">Nog niet gestart</div><p style="margin:0">Dag 1 begint zodra jij start. Tot dan zijn de weken dicht.</p><div><button class="btn" type="button" data-start="1">Start mijn 90 dagen</button></div></div>`:'';
+  return `<div class="sec"><div><div class="kick">13 weken · één route</div><h1>De reis</h1></div>${banner}`+phases.map(([p,d,ws])=>`<section class="phase"><div class="sechead"><h2>${p}</h2><span class="muted">${d}</span></div>${ws.map(n=>{const w=WEEKS[n-1],c=wd(n),r=n===8,open=isOpen(n);
+    const sub=open?(weekRange(n)||'Week '+n)+(get(`w${n}|done`)?' · afgerond':''):'Dicht · rond week '+prevWeek(n)+' af';
+    const right=r?`<span class="pill">Inhaal</span>`:open?`<span class="track" title="${c} van 7 dagen"><i style="width:${c/7*100}%"></i></span>`:LOCK;
+    return `<a class="wk ${r?'rest':''} ${open?'':'locked'}" href="#week-${n}"><span class="n">${String(n).padStart(2,'0')}</span><span><span class="t">${h(w.title)}</span><br><span class="mono">${sub}</span></span>${right}</a>${EVALS[n]&&open?`<a class="pill evmark ${get('ev'+EVALS[n].d+'|score')?'on':''}" href="#week-${n}-evaluatie" data-ev="1">Dag ${EVALS[n].d} · evaluatie</a>`:''}`}).join('')}</section>`).join('')+
   `<section class="phase"><div class="sechead"><h2>Bonus</h2><span class="muted">Wanneer nodig</span></div><a class="wk" href="#bonus"><span class="n">+</span><span><span class="t">Het brand partner-gesprek</span><br><span class="mono">Business</span></span><span></span></a></section></div>`}
 
 function trackerHtml(n,w){
   const c=current(), ti=(c.state==='run'&&c.w===n)?c.d:-1;
   const rows=[['gesprekken','Echte gesprekken gestart'],['opvolgingen','Opvolgingen'],['posts','Stories of posts met een vraag'],['sessie','Sessie of check-in bijgewoond']];
-  return `<div class="sec"><div class="days" role="group" aria-label="Dagen van week ${n}">${DOW.map((d,i)=>{const k=`w${n}|d${i}`;return `<button class="day ${i===ti?'now':''}" data-day="${k}" aria-pressed="${get(k)?'true':'false'}" aria-label="${d} ${fmt(addDays(START,(n-1)*7+i))}"><span>${d.toUpperCase()}</span><small>${addDays(START,(n-1)*7+i).getDate()}</small></button>`}).join('')}</div>
+  return `<div class="sec"><div class="days" role="group" aria-label="Dagen van week ${n}">${DOW.map((d0,i)=>{const dd=dayDate(n,i),d=dd?WD[dd.getDay()]:'d'+(i+1);const k=`w${n}|d${i}`;return `<button class="day ${i===ti?'now':''}" data-day="${k}" aria-pressed="${get(k)?'true':'false'}" aria-label="${d}${dayDate(n,i)?' '+fmt(dayDate(n,i)):''}"><span>${d.toUpperCase()}</span><small>${dayDate(n,i)?dayDate(n,i).getDate():'·'}</small></button>`}).join('')}</div>
   <div class="counters"><div class="cr h"><span>Wat ik tel</span><span>Doel</span><span>Gedaan</span></div>${rows.map(([r,l])=>`<div class="cr"><span>${l}</span><input type="number" min="0" inputmode="numeric" data-k="w${n}|t.${r}.doel" id="${sid(`w${n}|t.${r}.doel`)}" aria-label="Doel: ${l}" value="${h(get(`w${n}|t.${r}.doel`)||'')}"><input type="number" min="0" inputmode="numeric" data-k="w${n}|t.${r}.gedaan" id="${sid(`w${n}|t.${r}.gedaan`)}" aria-label="Gedaan: ${l}" value="${h(get(`w${n}|t.${r}.gedaan`)||'')}"></div>`).join('')}</div>
   <div class="cols2">${text(`w${n}|werkte`,'Vrijdag · wat werkte?',3)}${text(`w${n}|niet`,'Vrijdag · wat niet?',3)}</div>${text(`w${n}|win`,'Mijn win van deze week',2)}</div>`}
 
@@ -251,22 +286,39 @@ function evalHtml(n){const e=EVALS[n],k=`ev${e.d}`;
   <p class="muted">Bespreek deze pagina met je buddy vóór de live sessie.</p>
   ${n===13?`<div class="card"><div class="mono">Dag 90</div><h2 style="margin:6px 0 10px">Dit heb jij gebouwd.</h2><p style="margin:0">Begin klein. Luister beter. Vraag duidelijker. Doe het opnieuw.</p></div>`:''}</section>`}
 
+function vLocked(n){
+  const w=WEEKS[n-1], p=prevWeek(n), pw=WEEKS[p-1];
+  if(!started()) return `<article class="sec" style="gap:28px"><header class="wkhead"><div class="kick">Week ${String(n).padStart(2,'0')} / 13</div><h1>${h(w.title)}.</h1></header><div class="card gate">${LOCK}<p style="margin:0"><b>Je run is nog niet gestart.</b> Start je 90 dagen om week 1 te openen.</p><div><button class="btn" type="button" data-start="1">Start mijn 90 dagen</button></div></div></article>`;
+  return `<article class="sec" style="gap:28px"><header class="wkhead"><div class="kick">Week ${String(n).padStart(2,'0')} / 13 · ${h(w.ph)}</div><h1>${h(w.title)}.</h1></header>
+  <div class="card gate">${LOCK}<p style="margin:0"><b>Deze week is nog dicht.</b> Hij gaat open zodra je week ${p} (${h(pw.title)}) hebt gelezen en de live training hebt gevolgd.</p><div class="cks">${checkRow(`w${p}|read`,'Hoofdstuk gelezen')}${checkRow(`w${p}|trained`,'Live training gevolgd')}</div><div><a class="btn" href="#week-${p}">Naar week ${p}</a></div></div></article>`}
+function gateHint(n){
+  const nx=nextWeek(n); if(!nx) return '';
+  return ready(n)?`<span class="okline">✓ ${nx===8?'De inhaalweek':'Week '+nx} is open.</span> <a href="#week-${nx}">Ga verder →</a>`:`Vink beide af om ${nx===8?'de inhaalweek':'week '+nx} te openen.`}
+function sessionBlock(n){
+  const ss=SESS.filter(x=>x.week===n); if(!ss.length) return '';
+  return ss.map(x=>{const past=new Date(x.starts_at)<new Date(Date.now()-2*36e5);
+    return `<div class="card livecard"><div class="mono">${past?'Live training · terugkijken':'Live training'}</div><b>${h(x.title)}</b><span class="muted">${fmtWhen(x.starts_at)}</span><div class="row">${!past&&x.join_url?`<a class="btn" href="${h(x.join_url)}" target="_blank" rel="noopener">Doe mee</a>`:''}${x.recording_url?`<a class="btn ${past?'':'ghost'}" href="${h(x.recording_url)}" target="_blank" rel="noopener">Bekijk de opname</a>`:past?'<span class="muted">Opname volgt</span>':''}</div></div>`}).join('')}
 function vWeek(n){
+  if(!isOpen(n)) return vLocked(n);
   const w=WEEKS[n-1], m=C&&C[w.mod], full=get('me|mode')!=='light', sc='w'+n;
   const pager=`<div class="pager">${n>1?`<a class="btn ghost" href="#week-${n-1}">← Week ${n-1}</a>`:'<span></span>'}${n<13?`<a class="btn ghost" href="#week-${n+1}">Week ${n+1} →</a>`:`<a class="btn ghost" href="#voortgang">Naar je voortgang →</a>`}</div>`;
   if(n===8){
-    return `<article class="sec" style="gap:40px"><header class="wkhead"><div class="row"><span class="pill on">${h(w.ph)}</span><span class="pill">Week 8 · ${weekRange(8)}</span></div><h1>Inhaalweek. Of rust.</h1><p class="muted" style="font-size:1.1rem">${h(w.sub)}</p></header>
+    return `<article class="sec" style="gap:40px"><header class="wkhead"><div class="row"><span class="pill on">${h(w.ph)}</span><span class="pill">Week 8${weekRange(8)?' · '+weekRange(8):''}</span></div><h1>Inhaalweek. Of rust.</h1><p class="muted" style="font-size:1.1rem">${h(w.sub)}</p></header>
     <section class="sec"><div class="f"><span class="lb">Wat haal ik in?</span><div class="scale">${[1,2,3,4,5,6,7].map(x=>`<label class="opt"><input type="checkbox" data-k="w8|in${x}" ${get('w8|in'+x)?'checked':''}><span>W${x}</span></label>`).join('')}</div></div>${text('w8|a','Wat wil ik inhalen?')}${text('w8|b','Hoe laad ik op?')}${text('w8|c','Mijn intentie voor de tweede helft')}
     <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" data-k="w8|done" ${get('w8|done')?'checked':''}><span class="box">✓</span></span><b>Inhaalweek afgerond</b></label></section>${pager}</article>`}
   const fi=FI[n]||[], oef=fi.filter(f=>f.p==='oef'), opdr=fi.filter(f=>f.p==='opdr');
   const slides=CANVA.deck[w.mod];
   let o=`<article class="sec" style="gap:40px">`;
-  o+=`<header class="wkhead"><div class="kick">Sales Foundations 90 · Week ${String(n).padStart(2,'0')} / 13 · ${h(w.ph)}</div><h1>${h(w.title)}.</h1><p style="font-size:1.15rem;margin:0">${h(w.sub)}</p><div class="row"><span class="pill">Week ${n} · ${weekRange(n)}</span><span class="pill">Training ${String(w.mod).padStart(2,'0')}</span></div></header>`;
-  o+=`<section class="sec"><div class="sechead"><h2>De training</h2><span class="mono">Maandag · live</span></div>${m?`<p style="font-size:1.12rem"><b>${h(m.thesis)}</b></p>`:''}
+  o+=`<header class="wkhead"><div class="kick">Sales Foundations 90 · Week ${String(n).padStart(2,'0')} / 13 · ${h(w.ph)}</div><h1>${h(w.title)}.</h1><p style="font-size:1.15rem;margin:0">${h(w.sub)}</p><div class="row"><span class="pill">Week ${n}${weekRange(n)?' · '+weekRange(n):''}</span><span class="pill">Training ${String(w.mod).padStart(2,'0')}</span></div></header>`;
+  o+=`<section class="sec"><div class="sechead"><h2>De training</h2><span class="mono">Live</span></div>${m?`<p style="font-size:1.12rem"><b>${h(m.thesis)}</b></p>`:''}
    <div class="row"><a class="btn" href="${slides}" target="_blank" rel="noopener">Open de presentatie</a><a class="btn ghost" href="${CANVA.boek}" target="_blank" rel="noopener">Cursusboek · hoofdstuk ${w.mod}</a></div>
    ${m?`<div class="cols2"><div><div class="mono" style="margin-bottom:8px">Na deze training kun je</div><ul class="list">${m.goals.map(g=>`<li>${h(g.replace(/;$|\.$/,''))}</li>`).join('')}</ul></div><div><div class="mono" style="margin-bottom:8px">Kernpunten</div><ul class="list">${m.kern.map(g=>`<li>${h(g)}</li>`).join('')}</ul></div></div>
    ${m.beeld?`<div class="card"><div class="mono">Het beeld van deze week</div><p style="margin:4px 0 0;font-size:1.15rem"><b>${h(sentence(m.beeld))}</b></p></div>`:''}`:''}
-   <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" data-k="${sc}|read" ${get(sc+'|read')?'checked':''}><span class="box">✓</span></span><span><b>Training gevolgd en hoofdstuk gelezen</b></span></label></section>`;
+   ${sessionBlock(n)}
+   <div class="gatebox"><div class="mono">Om verder te gaan</div>
+   <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" data-k="${sc}|read" ${get(sc+'|read')?'checked':''}><span class="box">✓</span></span><span><b>Hoofdstuk gelezen</b><br><span class="muted">Cursusboek, hoofdstuk ${w.mod}</span></span></label>
+   <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" data-k="${sc}|trained" ${get(sc+'|trained')?'checked':''}><span class="box">✓</span></span><span><b>Live training gevolgd</b><br><span class="muted">Live of via de opname</span></span></label>
+   <p class="muted gatehint" id="gatehint" data-w="${n}" style="margin:0">${gateHint(n)}</p></div></section>`;
   o+=`<section class="sec"><div class="sechead"><h2>Oefening in de ruimte</h2></div>${m?`<p>${h(m.oef)}</p>`:''}${oef.map(f=>fiche(sc,f)).join('')}</section>`;
   o+=`<section class="sec"><div class="sechead"><h2>De weekopdracht</h2>${full?'':'<span class="pill">Light · optioneel</span>'}</div><details ${full?'open':''}><summary>${full?'Weekopdracht en fiche':'Toon de weekopdracht'}</summary><div class="sec" style="margin-top:10px">${m?`<p>${h(m.opdr)}</p>`:''}${opdr.map(f=>fiche(sc,f)).join('')}</div></details></section>`;
   o+=`<section class="sec"><div class="sechead"><h2>De gewoonte</h2><span class="mono" id="wkcount"></span></div><p class="q">${h(w.gew)}</p><div class="track" style="max-width:320px"><i id="wkbar"></i></div>${trackerHtml(n,w)}</section>`;
@@ -310,13 +362,80 @@ function vVoortgang(){
 function vMateriaal(){
   return `<div class="sec" style="gap:32px"><div><div class="kick">Alles bij elkaar</div><h1>Materiaal</h1></div>
   <section class="sec"><div class="sechead"><h2>Boeken</h2></div><div class="mat"><a href="${CANVA.boek}" target="_blank" rel="noopener">Cursusboek · de theorie</a><a href="${CANVA.werkboek}" target="_blank" rel="noopener">Werkboek · papieren versie</a></div></section>
-  <section class="sec"><div class="sechead"><h2>Presentaties</h2></div><div class="mat">${WEEKS.filter(w=>w.mod).map(w=>`<a href="${CANVA.deck[w.mod]}" target="_blank" rel="noopener">${String(w.mod).padStart(2,'0')} · ${h(w.title)}</a>`).join('')}<a href="${CANVA.deck.bonus}" target="_blank" rel="noopener">Bonus · het brand partner-gesprek</a></div></section>
+  <section class="sec"><div class="sechead"><h2>Presentaties</h2></div><div class="mat">${WEEKS.filter(w=>w.mod).map(w=>isOpen(w.n)?`<a href="${CANVA.deck[w.mod]}" target="_blank" rel="noopener">${String(w.mod).padStart(2,'0')} · ${h(w.title)}</a>`:`<span class="lockedmat">${String(w.mod).padStart(2,'0')} · ${h(w.title)}${LOCK}</span>`).join('')}<a href="${CANVA.deck.bonus}" target="_blank" rel="noopener">Bonus · het brand partner-gesprek</a></div></section>
   <section class="sec"><div class="sechead"><h2>Het ritme</h2></div><div class="rules">${[['Maandag','Weekfocus in de groep. Lees je opdracht.'],['Woensdag','Check-in: waar loop je vast?'],['Vrijdag','Deel je wins. Ook kleine.'],['Zondag','Vul je scorebord in.']].map(([d,t])=>`<div><b>${d}</b> · ${t}</div>`).join('')}</div>
    <p class="muted">Elke week heeft drie onderdelen: de training, de weekopdracht en de gewoonte, één kleine actie per dag.</p></section>
   <section class="sec"><div class="sechead"><h2>Drie spelregels</h2></div><div class="rules">
    <div><b>Geen gezondheidsclaims.</b> Essentiële oliën genezen, behandelen of voorkomen geen ziekten en vervangen geen medische zorg. Spreek vanuit eigen ervaring en de officiële productinformatie, en verwijs bij medische vragen naar een arts.</div>
    <div><b>Geen inkomensclaims.</b> Niet in de groep, niet in je posts, niet in je gesprekken. Geen bedragen, geen beloftes over verdiensten.</div>
    <div><b>Wie een week mist, valt niet uit.</b> Je pakt het gewoon terug op. Daarvoor bestaat de inhaalweek.</div></div></section></div>`}
+
+/* ---- live trainingen en opnames ---- */
+const LONG=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+const pad2=n=>String(n).padStart(2,'0');
+function fmtWhen(iso){const d=new Date(iso); return LONG[d.getDay()]+' '+d.getDate()+' '+MON[d.getMonth()]+' · '+pad2(d.getHours())+':'+pad2(d.getMinutes())}
+const isPast=x=>new Date(x.starts_at)<new Date(Date.now()-2*36e5); // tot twee uur na de start telt nog als "nu"
+function nextSession(){return SESS.filter(x=>!isPast(x))[0]||null}
+async function loadSessions(){try{const r=await api('GET','/sessions'); SESS=r.sessions||[]}catch(e){}}
+const toLocalInput=iso=>{const d=new Date(iso);return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'T'+pad2(d.getHours())+':'+pad2(d.getMinutes())};
+let EDITING=null;
+
+function sessCard(x,admin){
+  const d=new Date(x.starts_at), past=isPast(x);
+  const w=x.week!=null?(x.week===0?'Start':'Week '+x.week):'';
+  const btns=[];
+  if(!past&&x.join_url) btns.push(`<a class="btn" href="${h(x.join_url)}" target="_blank" rel="noopener">Doe mee</a>`);
+  if(x.recording_url) btns.push(`<a class="btn ${past?'':'ghost'}" href="${h(x.recording_url)}" target="_blank" rel="noopener">Bekijk de opname</a>`);
+  else if(past) btns.push('<span class="muted">Opname volgt</span>');
+  if(x.week) btns.push(`<a class="btn ghost" href="#week-${x.week}">Naar week ${x.week}</a>`);
+  const adm=admin?`<div class="row adm"><button class="btn ghost sm" type="button" data-sess="edit" data-id="${x.id}">Wijzig</button><button class="btn ghost sm" type="button" data-sess="del" data-id="${x.id}">Verwijder</button></div>`:'';
+  return `<article class="card sess ${past?'past':''}"><div class="sessdate" aria-hidden="true"><b>${d.getDate()}</b><span>${MON[d.getMonth()]}</span></div>
+  <div class="sessbody"><div class="row" style="gap:8px"><h3>${h(x.title)}</h3>${w?`<span class="pill">${w}</span>`:''}</div>
+  <div class="muted">${fmtWhen(x.starts_at)}</div>${x.notes?`<p style="margin:0">${h(x.notes)}</p>`:''}
+  ${btns.length?`<div class="row">${btns.join('')}</div>`:''}${adm}</div></article>`}
+
+function sessForm(){
+  const e=EDITING&&SESS.find(x=>x.id===EDITING)||null;
+  const weeks=['<option value="">Geen week</option><option value="0">Start / kennismaking</option>'].concat(Array.from({length:13},(_,i)=>`<option value="${i+1}" ${e&&e.week===i+1?'selected':''}>Week ${i+1} · ${h(WEEKS[i].title)}</option>`)).join('');
+  return `<form id="sessform" class="card sec" novalidate data-id="${e?e.id:''}"><div class="mono">${e?'Training wijzigen':'Live training of opname toevoegen'}</div>
+  <div class="cols2"><div class="f"><label class="lb" for="se-title">Titel</label><input id="se-title" type="text" value="${h(e?e.title:'')}" autocomplete="off"></div>
+  <div class="f"><label class="lb" for="se-start">Datum en tijd</label><input id="se-start" type="datetime-local" value="${e?toLocalInput(e.starts_at):''}"></div></div>
+  <div class="cols2"><div class="f"><label class="lb" for="se-week">Hoort bij</label><select id="se-week">${weeks}</select></div>
+  <div class="f"><label class="lb" for="se-join">Link om mee te doen (Zoom, Meet, Teams)</label><input id="se-join" type="url" inputmode="url" placeholder="https://" value="${h(e?e.join_url:'')}"></div></div>
+  <div class="f"><label class="lb" for="se-rec">Link naar de opname (komt erbij na afloop)</label><input id="se-rec" type="url" inputmode="url" placeholder="https://" value="${h(e?e.recording_url:'')}"></div>
+  <div class="f"><label class="lb" for="se-notes">Notitie voor de deelnemers (optioneel)</label><textarea id="se-notes" rows="2">${h(e?e.notes:'')}</textarea></div>
+  <p class="err" id="serr" role="alert"></p>
+  <div class="row"><button class="btn" type="submit">${e?'Opslaan':'Toevoegen'}</button>${e?'<button class="btn ghost" type="button" data-sess="cancel">Annuleren</button>':''}</div></form>`}
+
+function vLive(){
+  const admin=ME&&ME.role==='admin'&&!VIEW;
+  const up=SESS.filter(x=>!isPast(x)), past=SESS.filter(isPast).reverse();
+  return `<div class="sec" style="gap:32px"><div><div class="kick">Sales Foundations 90</div><h1>Live trainingen</h1>
+  <p class="muted" style="margin:8px 0 0">Hier staan de live trainingen en de opnames. Heb je er een gemist? Kijk de opname en vink daarna in de week aan dat je de training hebt gevolgd.</p></div>
+  ${admin?sessForm():''}
+  <section class="sec"><div class="sechead"><h2>Eerstvolgende</h2></div>${up.map(x=>sessCard(x,admin)).join('')||'<p class="muted">Er staat nog geen training gepland.</p>'}</section>
+  <section class="sec"><div class="sechead"><h2>Opnames</h2></div>${past.map(x=>sessCard(x,admin)).join('')||'<p class="muted">Nog geen afgelopen trainingen.</p>'}</section></div>`}
+
+async function saveSession(f){
+  const err=document.getElementById('serr'); err.textContent='';
+  const v=id=>document.getElementById(id).value.trim();
+  if(!v('se-title')||!v('se-start')){err.textContent='Vul een titel en een datum in.';return}
+  const wk=v('se-week');
+  const body={title:v('se-title'),starts_at:new Date(v('se-start')).toISOString(),week:wk===''?null:+wk,join_url:v('se-join'),recording_url:v('se-rec'),notes:v('se-notes')};
+  try{
+    if(f.dataset.id) await api('PUT','/admin/sessions/'+f.dataset.id,body); else await api('POST','/admin/sessions',body);
+    EDITING=null; await loadSessions(); route();
+  }catch(e){err.textContent=e.message}
+}
+async function sessAction(b){
+  const a=b.dataset.sess,id=b.dataset.id;
+  if(a==='edit'){EDITING=id; await route(); const f=document.getElementById('sessform'); if(f) f.scrollIntoView({block:'center'}); return}
+  if(a==='cancel'){EDITING=null; return route()}
+  if(a==='del'){
+    if(b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='Zeker weten?';return}
+    try{await api('DELETE','/admin/sessions/'+id); EDITING=null; await loadSessions(); route()}catch(e){b.textContent=e.message}
+  }
+}
 
 /* ---- account ---- */
 function accountHtml(){
@@ -332,13 +451,24 @@ function accountHtml(){
   </form></section>`}
 
 /* ---- router ---- */
-const NAV=[['start','Vandaag'],['reis','Reis'],['mijn-90','Mijn 90'],['voortgang','Voortgang'],['materiaal','Materiaal']];
+const SKEL='<div class="skel" aria-label="Laden"><i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i></div>';
+let LASTKEY='';
+function enter(key){const m=mainEl(); if(key===LASTKEY) return; LASTKEY=key; m.classList.remove('enter'); void m.offsetWidth; m.classList.add('enter'); setTimeout(()=>m.classList.remove('enter'),900)}
+const NAV=[['start','Vandaag'],['reis','Reis'],['live','Live'],['mijn-90','Mijn 90'],['voortgang','Voortgang'],['materiaal','Materiaal']];
+const ICONS={start:'<path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4v-5H9v5H5a1 1 0 0 1-1-1z"/>',
+ reis:'<path d="M5 20V4M5 5h11l-2 3.5L16 12H5"/>',
+ live:'<circle cx="12" cy="12" r="2.2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/>',
+ 'mijn-90':'<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11"/>',
+ voortgang:'<path d="M5 20V10M12 20V4M19 20v-7"/>',
+ materiaal:'<path d="M4 7a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/>',
+ beheer:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.8M17.5 14.5a5 5 0 0 1 3 4.5"/>'};
+const navItem=(href,id,l,active)=>`<a href="${href}" ${id===active?'aria-current="page"':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]||''}</svg><span>${l}</span></a>`;
 const mainEl=()=>document.getElementById('app');
 function chrome(){document.body.classList.toggle('anon',!ME);document.getElementById('lo').hidden=!ME}
 function setNav(active){
   const prefix=VIEW?'deelnemer-'+VIEW.id+'-':'';
-  const items=NAV.concat(ME&&ME.role==='admin'&&!VIEW?[['beheer','Deelnemers']]:[]);
-  document.getElementById('nav').innerHTML=ME?items.map(([id,l])=>`<a href="#${prefix}${id}" ${id===active?'aria-current="page"':''}>${l}</a>`).join(''):'';
+  const items=NAV.concat(ME&&ME.role==='admin'&&!VIEW?[['beheer','Beheer']]:[]);
+  document.getElementById('nav').innerHTML=ME?items.map(([id,l])=>navItem('#'+prefix+id,id,l,active)).join(''):'';
 }
 function viewFor(raw){
   let r=raw,anchor='',v;
@@ -349,6 +479,7 @@ function viewFor(raw){
   else if(r==='mijn-90') v=vMijn();
   else if(r==='voortgang') v=vVoortgang();
   else if(r==='materiaal') v=vMateriaal();
+  else if(r==='live') v=vLive();
   else {r='start';v=vStart()}
   return {r,v,anchor};
 }
@@ -359,6 +490,7 @@ function draw(raw,prefix){
     html=html.replace(/href="#(?!deelnemer)/g,'href="#'+prefix);
     html=`<div class="viewas"><span>Je bekijkt het boek van <b>${h(VIEW.name)}</b>. Alleen lezen.</span><a class="btn ghost" href="#beheer">← Alle deelnemers</a></div>`+html;
   }
+  enter(prefix+raw);
   mainEl().innerHTML=html;
   if(prefix) mainEl().querySelectorAll('input,textarea,select,button[data-day]').forEach(e=>{e.disabled=true});
   setNav(r.startsWith('week')||r==='bonus'?'reis':r);
@@ -375,7 +507,7 @@ async function route(){
   if(!ME) return showLogin();
   const vm=raw.match(/^deelnemer-([0-9a-f]{24})(?:-(.+))?$/);
   if(vm&&ME.role==='admin'){
-    mainEl().innerHTML='<p class="muted">Laden…</p>';
+    mainEl().innerHTML=SKEL;
     try{
       if(!VIEW||VIEW.id!==vm[1]){
         const r=await api('GET','/admin/participants/'+vm[1]+'/progress');
@@ -386,12 +518,18 @@ async function route(){
     return draw(vm[2]||'start','deelnemer-'+vm[1]+'-');
   }
   VIEW=null;
+  if(raw==='live') await loadSessions();
+  else if(ME.role==='member'){ // toegang kan door de beheerder zijn aangepast
+    const wm=raw.match(/^week-(\d+)/);
+    if(raw==='reis'||raw==='start'||(wm&&!isOpen(+wm[1]))) await refreshAccess();
+  }
+  if(my!==seq) return;
   if(raw==='beheer'){
     if(ME.role!=='admin'){location.hash='#start';return}
-    mainEl().innerHTML='<p class="muted">Laden…</p>';
+    mainEl().innerHTML=SKEL;
     let html; try{html=await vBeheer()}catch(e){html=`<p class="err">${h(e.message)}</p>`}
     if(my!==seq) return;
-    mainEl().innerHTML=html; setNav('beheer'); paint(); window.scrollTo(0,0); return;
+    enter('beheer'); mainEl().innerHTML=html; setNav('beheer'); paint(); window.scrollTo(0,0); return;
   }
   draw(raw,'');
 }
@@ -401,6 +539,7 @@ function paint(){
   document.getElementById('hpl').textContent=(c.state==='run'?'Dag '+Math.min(90,c.i+1)+' · ':'')+p+'%';
   document.getElementById('hpb').style.width=p+'%';
   const st=document.getElementById('stats'); if(st) st.innerHTML=statsHtml();
+  const gh=document.getElementById('gatehint'); if(gh) gh.innerHTML=gateHint(+gh.dataset.w);
   const m=(location.hash||'').match(/week-(\d+)(?:-evaluatie)?$/);
   if(m){const n=+m[1],d=wd(n),b=document.getElementById('wkbar'),t=document.getElementById('wkcount'); if(b) b.style.width=d/7*100+'%'; if(t) t.textContent=d+' van 7 dagen'}
 }
@@ -420,8 +559,10 @@ async function vBeheer(){
     return `<article class="card pcard"><div class="row"><b style="font-size:1.1rem">${h(p.name)}</b><span class="pill ${status[1]}">${status[0]}</span><span class="pill">${p.mode==='light'?'Light':'Full'}</span></div>
     <div class="muted">${h(p.email)} · laatst actief ${ago(p.updated_at||p.last_login)}</div>
     <div class="row"><div class="track" style="width:160px"><i style="width:${p.days/p.days_total*100}%"></i></div><span class="mono">${p.days} / ${p.days_total} dagen · ${p.weeks_done} / 13 weken</span></div>
+    <div class="muted">${p.start?'Gestart op '+fmt(new Date(p.start+'T00:00:00'))+' · dag '+Math.max(1,Math.min(90,Math.round((day0(new Date())-new Date(p.start+'T00:00:00'))/864e5)+1)):'Nog niet gestart'} · gelezen ${p.weeks_read} · training ${p.weeks_trained}</div>
+    <div class="row"><label class="lb" for="un-${p.id}" style="margin:0">Toegang</label><select id="un-${p.id}" data-unlock="${p.id}" style="width:auto"><option value="-1">Automatisch (na lezen en training)</option>${Array.from({length:13},(_,i)=>`<option value="${i+1}" ${p.unlock_to===i+1?'selected':''}>Open t/m week ${i+1}</option>`).join('')}</select></div>
     ${p.goal?`<p style="margin:0"><span class="mono">Doel</span><br>${h(p.goal)}</p>`:''}
-    <div class="row"><a class="btn sm" href="#deelnemer-${p.id}-start">Bekijk boek</a><button class="btn ghost sm" type="button" data-act="invite" data-id="${p.id}" data-name="${h(p.name)}">Nieuwe link</button><button class="btn ghost sm" type="button" data-act="toggle" data-id="${p.id}" data-active="${p.active?1:0}">${p.active?'Uitschakelen':'Activeren'}</button><button class="btn ghost sm" type="button" data-act="del" data-id="${p.id}">Verwijderen</button></div></article>`}).join('');
+    <div class="row"><a class="btn sm" href="#deelnemer-${p.id}-start">Bekijk boek</a><button class="btn ghost sm" type="button" data-act="invite" data-id="${p.id}" data-name="${h(p.name)}">Nieuwe link</button>${p.start?`<button class="btn ghost sm" type="button" data-act="resetstart" data-id="${p.id}">Start terugzetten</button>`:''}<button class="btn ghost sm" type="button" data-act="toggle" data-id="${p.id}" data-active="${p.active?1:0}">${p.active?'Uitschakelen':'Activeren'}</button><button class="btn ghost sm" type="button" data-act="del" data-id="${p.id}">Verwijderen</button></div></article>`}).join('');
   return `<div class="sec" style="gap:28px"><div><div class="kick">Alleen voor de beheerder</div><h1>Deelnemers</h1></div>
   <form id="addform" class="card sec" novalidate><div class="mono">Nieuwe deelnemer</div>
    <div class="cols2"><div class="f"><label class="lb" for="ad-name">Naam</label><input id="ad-name" name="name" type="text" autocomplete="off"></div><div class="f"><label class="lb" for="ad-email">E-mail</label><input id="ad-email" name="email" type="email" autocomplete="off"></div></div>
@@ -433,6 +574,10 @@ async function adminAction(a){
   try{
     if(act==='refresh') return route();
     if(act==='invite'){const r=await api('POST','/admin/participants/'+id+'/invite'); LASTLINK={name:a.dataset.name,url:location.origin+'/#uitnodiging-'+r.invite_token}; route()}
+    else if(act==='resetstart'){
+      if(a.dataset.armed!=='1'){a.dataset.armed='1';a.textContent='Zeker weten? Dag 1 begint opnieuw';return}
+      await api('PATCH','/admin/participants/'+id,{reset_start:true}); route();
+    }
     else if(act==='toggle'){await api('PATCH','/admin/participants/'+id,{active:a.dataset.active!=='1'}); route()}
     else if(act==='del'){
       if(a.dataset.armed!=='1'){a.dataset.armed='1';a.textContent='Zeker weten? Alles wordt gewist';return}
@@ -447,7 +592,7 @@ async function copyText(btn){
 
 /* ---- inloggen ---- */
 function showLogin(msg){
-  chrome(); setNav('');
+  chrome(); setNav(''); LASTKEY='';
   mainEl().innerHTML=`<div class="auth"><div><div class="kick">Sales Foundations 90</div><h1>90 Day Run</h1></div>
   <form id="loginform" class="sec" novalidate>
    <div class="f"><label class="lb" for="li-email">E-mail</label><input id="li-email" name="email" type="email" autocomplete="username"></div>
@@ -457,7 +602,8 @@ function showLogin(msg){
   <p class="muted">Nog geen account? Je krijgt een persoonlijke link van Nander.</p>
   <p class="muted small">Alleen jij en je begeleider kunnen jouw boek zien. Andere deelnemers zien niets van jou.</p></div>`;
 }
-async function loadOwn(){const p=await api('GET','/me/progress'); OWN=p.d||{}}
+async function refreshAccess(){try{const p=await api('GET','/me/progress'); ACCESS=p.access||ACCESS}catch(e){}}
+async function loadOwn(){const p=await api('GET','/me/progress'); OWN=p.d||{}; ACCESS=p.access||{unlock_to:null}; await loadSessions()}
 async function doLogin(f){
   const err=document.getElementById('lerr'),btn=f.querySelector('button'); err.textContent=''; btn.disabled=true;
   try{
@@ -467,7 +613,7 @@ async function doLogin(f){
 }
 async function showInvite(token){
   chrome(); setNav('');
-  mainEl().innerHTML='<div class="auth"><p class="muted">Laden…</p></div>';
+  mainEl().innerHTML='<div class="auth">'+SKEL+'</div>';
   let info; try{info=await api('GET','/auth/invite/'+encodeURIComponent(token))}
   catch(e){mainEl().innerHTML=`<div class="auth"><h1>Link niet geldig</h1><p>${h(e.message)}</p><a class="btn ghost" href="#start" data-reload="1">Naar inloggen</a></div>`;return}
   mainEl().innerHTML=`<div class="auth"><div><div class="kick">Welkom bij de 90 Day Run</div><h1>Hallo ${h(info.name)}</h1></div>
@@ -485,7 +631,7 @@ async function doInvite(f){
   btn.disabled=true;
   try{
     ME=await api('POST','/auth/accept-invite',{token:f.dataset.token,password:f.pw.value});
-    await loadOwn(); history.replaceState(null,'','#mijn-90'); route();
+    await loadOwn(); history.replaceState(null,'','#start'); route();
   }catch(e){err.textContent=e.message;btn.disabled=false}
 }
 async function doPassword(f){
@@ -504,7 +650,7 @@ async function doAdd(f){
 async function logout(){
   await flush(true);
   try{await api('POST','/auth/logout')}catch(e){}
-  ME=null;OWN={};VIEW=null;LASTLINK=null;
+  ME=null;OWN={};VIEW=null;LASTLINK=null;ACCESS={unlock_to:null};SESS=[];EDITING=null;
   history.replaceState(null,'','#start'); showLogin();
 }
 
@@ -519,6 +665,8 @@ document.addEventListener('click',e=>{
     if(d.id==='todaybtn'){const r=document.querySelector('.ringsvg'); if(r){const t=document.createElement('div'); t.innerHTML=ring(); r.replaceWith(t.firstChild)}}
     return;
   }
+  const st=e.target.closest('[data-start]'); if(st&&!VIEW) return startRun(st);
+  const sa=e.target.closest('[data-sess]'); if(sa) return sessAction(sa);
   const a=e.target.closest('[data-act]'); if(a) return adminAction(a);
   const c=e.target.closest('[data-copy]'); if(c) return copyText(c);
   if(e.target.closest('#lo')||e.target.closest('[data-logout]')) return logout();
@@ -530,6 +678,16 @@ document.addEventListener('submit',e=>{
   else if(f.id==='inviteform') doInvite(f);
   else if(f.id==='pwform') doPassword(f);
   else if(f.id==='addform') doAdd(f);
+  else if(f.id==='sessform') saveSession(f);
+});
+async function startRun(b){
+  b.disabled=true;
+  try{const r=await api('POST','/me/start'); OWN['me|start']=r.start; location.hash==='#start'?route():(location.hash='#start')}
+  catch(e){b.disabled=false; b.textContent=e.message}
+}
+document.addEventListener('change',async e=>{
+  const u=e.target.closest&&e.target.closest('[data-unlock]'); if(!u) return;
+  try{await api('PATCH','/admin/participants/'+u.dataset.unlock,{unlock_to:+u.value}); status('Opgeslagen')}catch(err){u.title=err.message}
 });
 function onField(e){
   const el=e.target; if(VIEW||!el.dataset||!el.dataset.k) return;
@@ -549,6 +707,7 @@ document.addEventListener('visibilitychange',async()=>{
   if(!ME||VIEW||Object.keys(pend.set).length||pend.unset.size||inflight) return;
   try{
     const p=await api('GET','/me/progress');
+    ACCESS=p.access||ACCESS;
     if(!same(p.d||{},OWN)&&!document.activeElement.matches('input,textarea,select')){const y=scrollY; OWN=p.d||{}; await route(); scrollTo(0,y)}
   }catch(e){}
 });

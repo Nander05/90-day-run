@@ -6,8 +6,15 @@ course = (root / "tools/src/course.json").read_text().strip()
 out = root / "frontend"; out.mkdir(exist_ok=True)
 
 def L(a, b): return "\n".join(src[a-1:b])   # 1-gebaseerd, inclusief
+def idx(prefix, start=0):
+    """1-gebaseerd regelnummer van de eerste regel die met prefix begint (zoekt vanaf regel `start`)."""
+    for i in range(start, len(src)):
+        if src[i].startswith(prefix): return i + 1
+    raise SystemExit("marker niet gevonden: " + prefix)
+I_STYLE, I_STYLE_END = idx("<style>"), idx("</style>")
+I_C, I_STATE, I_H, I_ROUTER = idx("const C = "), idx("/* ---- state ---- */"), idx("const h=s=>"), idx("/* ---- router ---- */")
 
-css = L(5, 155)
+css = L(I_STYLE + 1, I_STYLE_END - 1)
 css = css[css.index("*{box-sizing"):]   # eigen thema-tokens komen ervoor
 tokens = (root/"tools/theme-tokens.css").read_text()
 restyle = (root/"tools/theme-restyle.css").read_text()
@@ -31,21 +38,23 @@ body.anon .hp,body.anon .nav{display:none}
 input[disabled],textarea[disabled],select[disabled]{opacity:.85;cursor:not-allowed}
 .chk input[disabled]+.box{cursor:not-allowed}
 """
-(out/"styles.css").write_text(tokens + css + extra + restyle)
+appcss = (root/"tools/theme-app.css").read_text()
+(out/"styles.css").write_text(tokens + css + extra + restyle + appcss)
 import shutil; shutil.copytree(root/"tools/fonts", out/"fonts", dirs_exist_ok=True)
 for f in ("manifest.json","sw.js","pwa.js"): shutil.copy(root/"tools/pwa"/f, out/f)
 shutil.copytree(root/"tools/pwa/icons", out/"icons", dirs_exist_ok=True)
 (out/"theme.js").write_text((root/"tools/theme.js").read_text())
 
-js = L(172, 289)                       # na `const C = ...` t/m voor '/* ---- state ---- */'
-head = L(170, 171).replace("<script>", "").replace("/*COURSE*/null", "window.COURSE")
+js = L(I_C + 1, I_STATE - 1)                       # na `const C = ...` t/m voor '/* ---- state ---- */'
+head = L(I_C - 1, I_C).replace("<script>", "").replace("/*COURSE*/null", "window.COURSE")
 state = (root/"tools/state.js").read_text()
-rest = L(297, 461)                     # helpers t/m vMateriaal, voor '/* ---- router ---- */'
+rest = L(I_H, I_ROUTER - 1)                     # helpers t/m vMateriaal, voor '/* ---- router ---- */'
 # back-up sectie -> account sectie
 rest = re.sub(r'<section class="sec"><div class="sechead"><h2>Back-up</h2></div>.*?<div id="bkout"></div></section>', '${accountHtml()}', rest, flags=re.S)
 assert "bkout" not in rest and "accountHtml" in rest
 tail = (root/"tools/tail.js").read_text()
-app = head + "\n" + js + "\n" + state + "\n" + rest + "\n" + tail
+live = (root/"tools/live.js").read_text()
+app = head + "\n" + js + "\n" + state + "\n" + rest + "\n" + live + "\n" + tail
 assert "localStorage" not in app and "bindBackup" not in app and "persist" not in app, "oude opslag nog aanwezig"
 (out/"app.js").write_text("'use strict';\n" + app.lstrip())
 (out/"course.js").write_text("window.COURSE = " + course + ";\n")
@@ -81,7 +90,7 @@ assert "localStorage" not in app and "bindBackup" not in app and "persist" not i
     </div>
     <nav class="nav" id="nav" aria-label="Hoofdmenu"></nav>
   </header>
-  <main id="app"><p class="muted">Laden…</p></main>
+  <main id="app"><div class="skel" aria-label="Laden"><i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i></div></main>
 </div>
 <script src="/course.js"></script>
 <script src="/app.js"></script>

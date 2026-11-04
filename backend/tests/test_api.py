@@ -226,3 +226,56 @@ def test_security_headers(fresh):
     r = client().get("/healthz")
     assert r.headers["x-content-type-options"] == "nosniff"
     assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
+
+
+def test_start_is_set_once_by_server(fresh):
+    admin = admin_client()
+    a, aid, _ = make_member(admin)
+    assert a.get("/api/me/progress").json()["d"].get("me|start") is None
+    r = a.post("/api/me/start", headers=H).json()
+    assert r["already"] is False and len(r["start"]) == 10
+    r2 = a.post("/api/me/start", headers=H).json()
+    assert r2["already"] is True and r2["start"] == r["start"]
+    # de deelnemer kan de startdatum niet zelf aanpassen
+    assert a.patch("/api/me/progress", json={"set": {"me|start": "2020-01-01"}}, headers=H).status_code == 422
+    assert a.patch("/api/me/progress", json={"unset": ["me|start"]}, headers=H).status_code == 422
+    assert a.get("/api/me/progress").json()["d"]["me|start"] == r["start"]
+    # beheerder ziet de start en kan hem terugzetten
+    row = [p for p in admin.get("/api/admin/participants").json()["participants"] if p["id"] == aid][0]
+    assert row["start"] == r["start"]
+    assert admin.patch(f"/api/admin/participants/{aid}", json={"reset_start": True}, headers=H).status_code == 200
+    assert a.get("/api/me/progress").json()["d"].get("me|start") is None
+
+
+def test_unlock_override_only_by_admin(fresh):
+    admin = admin_client()
+    a, aid, _ = make_member(admin)
+    assert a.get("/api/me/progress").json()["access"]["unlock_to"] is None
+    assert a.patch(f"/api/admin/participants/{aid}", json={"unlock_to": 5}, headers=H).status_code == 403
+    assert admin.patch(f"/api/admin/participants/{aid}", json={"unlock_to": 5}, headers=H).status_code == 200
+    assert a.get("/api/me/progress").json()["access"]["unlock_to"] == 5
+    assert admin.patch(f"/api/admin/participants/{aid}", json={"unlock_to": -1}, headers=H).status_code == 200
+    assert a.get("/api/me/progress").json()["access"]["unlock_to"] is None
+
+
+def test_live_sessions(fresh):
+    admin = admin_client()
+    a, _, _ = make_member(admin)
+    body = {"title": "Live training week 1", "starts_at": "2026-11-10T19:00:00+01:00", "week": 1,
+            "join_url": "https://zoom.us/j/123", "recording_url": "", "notes": ""}
+    assert a.post("/api/admin/sessions", json=body, headers=H).status_code == 403
+    assert client().get("/api/sessions").status_code == 401
+    r = admin.post("/api/admin/sessions", json=body, headers=H)
+    assert r.status_code == 201
+    s = r.json()["session"]
+    assert s["starts_at"] == "2026-11-10T18:00:00Z"
+    # onveilige links worden geweigerd
+    bad = {**body, "join_url": "javascript:alert(1)"}
+    assert admin.post("/api/admin/sessions", json=bad, headers=H).status_code == 422
+    upd = {**body, "recording_url": "https://youtu.be/abc"}
+    assert admin.put(f"/api/admin/sessions/{s['id']}", json=upd, headers=H).status_code == 200
+    rows = a.get("/api/sessions").json()["sessions"]
+    assert len(rows) == 1 and rows[0]["recording_url"] == "https://youtu.be/abc"
+    assert a.delete(f"/api/admin/sessions/{s['id']}", headers=H).status_code == 403
+    assert admin.delete(f"/api/admin/sessions/{s['id']}", headers=H).status_code == 200
+    assert a.get("/api/sessions").json()["sessions"] == []
