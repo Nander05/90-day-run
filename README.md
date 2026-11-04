@@ -63,6 +63,10 @@ tools/run_e2e.sh                            # browsertest met Playwright (login,
 
 De app heeft drie weergaven, afgestemd op de presentaties: donker (standaard), licht en rood. Je kiest met de drie bolletjes rechtsboven; de keuze wordt per toestel onthouden. De lettertypen (Anton, Public Sans, IBM Plex Mono) staan in de app zelf, dus er worden geen externe diensten geladen.
 
+## Installeren op je telefoon
+
+De app is installeerbaar (PWA). In Chrome op Android: menu, **App installeren** of **Toevoegen aan startscherm**. Op iPhone in Safari: Deel, **Zet op beginscherm**. De iconen maak je opnieuw met `python3 tools/make_icons.py` en een build met `python3 tools/build.py`. De service worker bewaart niets in de cache, dus persoonlijke gegevens blijven alleen op de server.
+
 ## Opbouw
 
 ```

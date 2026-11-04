@@ -130,6 +130,15 @@ with sync_playwright() as p:
     m.wait_for_selector("#loginform")
     ok(m.evaluate("document.documentElement.scrollWidth<=window.innerWidth"), "login past op 390px")
     m.screenshot(path="/tmp/e2e-login-mobile.png")
+    # ---------- installeerbaar (PWA)
+    pw = a.evaluate("""fetch('/manifest.json').then(r=>r.json()).then(async m=>{
+      const ic=await Promise.all(m.icons.map(i=>fetch(i.src).then(r=>r.status+':'+r.headers.get('content-type'))));
+      return {name:m.name,display:m.display,sizes:m.icons.map(i=>i.sizes),ic}})""")
+    ok(pw["display"] == "standalone" and all(x == "200:image/png" for x in pw["ic"]), f"manifest en iconen bereikbaar ({pw['sizes']})")
+    a.goto(B + "/#start"); a.wait_for_selector("#nav a")
+    a.wait_for_timeout(1500)
+    ok(a.evaluate("navigator.serviceWorker.getRegistration().then(r=>!!r)"), "service worker geregistreerd")
+    ok(a.evaluate("caches.keys().then(k=>k.length)") == 0, "niets in de cache bewaard (privacy)")
     br.close()
 
 print("\nFOUTEN:", errs if errs else "geen")

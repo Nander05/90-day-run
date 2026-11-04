@@ -33,6 +33,8 @@ input[disabled],textarea[disabled],select[disabled]{opacity:.85;cursor:not-allow
 """
 (out/"styles.css").write_text(tokens + css + extra + restyle)
 import shutil; shutil.copytree(root/"tools/fonts", out/"fonts", dirs_exist_ok=True)
+for f in ("manifest.json","sw.js","pwa.js"): shutil.copy(root/"tools/pwa"/f, out/f)
+shutil.copytree(root/"tools/pwa/icons", out/"icons", dirs_exist_ok=True)
 (out/"theme.js").write_text((root/"tools/theme.js").read_text())
 
 js = L(172, 289)                       # na `const C = ...` t/m voor '/* ---- state ---- */'
@@ -58,6 +60,13 @@ assert "localStorage" not in app and "bindBackup" not in app and "persist" not i
 <link rel="preload" href="/fonts/anton-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/styles.css">
 <meta name="theme-color" content="#0e0e0e">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="90 Day Run">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="/theme.js"></script>
 </head>
 <body class="anon">
@@ -76,6 +85,7 @@ assert "localStorage" not in app and "bindBackup" not in app and "persist" not i
 </div>
 <script src="/course.js"></script>
 <script src="/app.js"></script>
+<script src="/pwa.js"></script>
 </body>
 </html>
 """)
