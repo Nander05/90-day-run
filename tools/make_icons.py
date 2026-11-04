@@ -1,14 +1,23 @@
-"""Maakt de app-iconen (PNG) uit tools/pwa/icon.html. Gebruik: python3 tools/make_icons.py"""
+"""Maakt de app-iconen uit het logo van de WhatsApp-groep (tools/pwa/logo.png). Gebruik: python3 tools/make_icons.py"""
 import os, pathlib
-from playwright.sync_api import sync_playwright
-root = pathlib.Path(__file__).resolve().parent
-out = root / "pwa" / "icons"; out.mkdir(exist_ok=True)
-sizes = {"icon-192.png": 192, "icon-512.png": 512, "icon-maskable-512.png": 512, "apple-touch-icon.png": 180, "favicon-32.png": 32}
-with sync_playwright() as p:
-    br = p.chromium.launch(executable_path="/usr/bin/google-chrome") if os.path.exists("/usr/bin/google-chrome") else p.chromium.launch()
-    for name, s in sizes.items():
-        pg = br.new_page(viewport={"width": s, "height": s})
-        pg.goto((root / "pwa" / "icon.html").as_uri()); pg.wait_for_timeout(400)
-        pg.screenshot(path=str(out / name)); pg.close()
-    br.close()
+from PIL import Image, ImageDraw, ImageFilter, ImageStat
+root = pathlib.Path(__file__).resolve().parent / "pwa"
+out = root / "icons"; out.mkdir(exist_ok=True)
+logo = Image.open(root / "logo.png").convert("RGB")
+# gemiddelde kleur van de buitenrand van het logo = achtergrond (het logo heeft fijne korrel, dus niet één pixel)
+ring = Image.new("L", logo.size, 0); d = ImageDraw.Draw(ring); d.rectangle((0, 0, 639, 639), fill=255); d.rectangle((24, 24, 615, 615), fill=0)
+bg = tuple(int(round(v)) for v in ImageStat.Stat(logo, ring).mean)
+
+def plain(size): return logo.resize((size, size), Image.LANCZOS)
+
+def maskable(size, scale=0.72):     # logo in het midden: veilig voor ronde en afgeronde uitsnedes
+    c = Image.new("RGB", (size, size), bg); s = int(size * scale)
+    m = Image.new("L", (s, s), 0); f = max(2, s // 14)       # zachte rand, geen zichtbare naad
+    ImageDraw.Draw(m).rectangle((f, f, s - f, s - f), fill=255); m = m.filter(ImageFilter.GaussianBlur(f / 2))
+    c.paste(logo.resize((s, s), Image.LANCZOS), ((size - s) // 2, (size - s) // 2), m); return c
+
+plain(192).save(out / "icon-192.png"); plain(512).save(out / "icon-512.png")
+maskable(512).save(out / "icon-maskable-512.png")
+maskable(180, 0.86).save(out / "apple-touch-icon.png")   # iOS rondt zelf af
+plain(32).save(out / "favicon-32.png")
 print(sorted(os.listdir(out)))

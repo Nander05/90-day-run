@@ -65,7 +65,7 @@ De app heeft drie weergaven, afgestemd op de presentaties: donker (standaard), l
 
 ## Installeren op je telefoon
 
-De app is installeerbaar (PWA). In Chrome op Android: menu, **App installeren** of **Toevoegen aan startscherm**. Op iPhone in Safari: Deel, **Zet op beginscherm**. De iconen maak je opnieuw met `python3 tools/make_icons.py` en een build met `python3 tools/build.py`. De service worker bewaart niets in de cache, dus persoonlijke gegevens blijven alleen op de server.
+De app is installeerbaar (PWA). In Chrome op Android: menu, **App installeren** of **Toevoegen aan startscherm**. Op iPhone in Safari: Deel, **Zet op beginscherm**. De iconen komen uit het logo van de WhatsApp-groep (`tools/pwa/logo.png`) en maak je opnieuw met `python3 tools/make_icons.py` en een build met `python3 tools/build.py`. De service worker bewaart niets in de cache, dus persoonlijke gegevens blijven alleen op de server.
 
 ## Opbouw
 
