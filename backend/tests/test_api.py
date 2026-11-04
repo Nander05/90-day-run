@@ -279,3 +279,18 @@ def test_live_sessions(fresh):
     assert a.delete(f"/api/admin/sessions/{s['id']}", headers=H).status_code == 403
     assert admin.delete(f"/api/admin/sessions/{s['id']}", headers=H).status_code == 200
     assert a.get("/api/sessions").json()["sessions"] == []
+
+
+def test_participant_can_change_start(fresh):
+    admin = admin_client()
+    a, aid, _ = make_member(admin)
+    r = a.post("/api/me/start", headers=H).json()
+    from app.routers.progress import today_local
+    from datetime import date, timedelta
+    later = (date.fromisoformat(today_local()) + timedelta(days=14)).isoformat()
+    assert a.put("/api/me/start", json={"date": later}, headers=H).json()["start"] == later
+    assert a.get("/api/me/progress").json()["d"]["me|start"] == later
+    assert a.put("/api/me/start", json={"date": "2099-01-01"}, headers=H).status_code == 422
+    assert a.put("/api/me/start", json={"date": "geen-datum"}, headers=H).status_code == 422
+    assert admin.patch(f"/api/admin/participants/{aid}", json={"start_date": r["start"]}, headers=H).status_code == 200
+    assert a.get("/api/me/progress").json()["d"]["me|start"] == r["start"]

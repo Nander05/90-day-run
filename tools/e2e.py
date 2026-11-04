@@ -74,6 +74,18 @@ with sync_playwright() as p:
     an.click("[data-start]")
     an.wait_for_selector("#todaybtn")
     ok(True, "Anna start zelf: dag 1 begint nu")
+    # startdatum later zetten: weken dicht, terug naar vandaag: weer open
+    an.fill("#st-date", "2099-01-01"); an.click("#startform button")
+    expect(an.locator("#sterr")).not_to_be_empty()
+    import datetime
+    fut = (datetime.date.today() + datetime.timedelta(days=10)).isoformat()
+    an.fill("#st-date", fut); an.click("#startform button")
+    an.wait_for_selector("[data-start]")
+    an.goto(B + "/#week-1"); an.wait_for_selector(".gate")
+    ok(an.locator("[data-day]").count() == 0, "startdatum later gezet: week 1 blijft dicht")
+    an.goto(B + "/#start"); an.wait_for_selector("[data-start]")
+    an.click("[data-start]"); an.wait_for_selector("#todaybtn")
+    ok(True, "toch vandaag starten werkt")
     an.goto(B + "/#week-2")
     an.wait_for_selector(".gate")
     ok(an.locator("textarea[data-k]").count() == 0, "week 2 is dicht zolang week 1 niet klaar is")

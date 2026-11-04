@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from typing import Dict, List, Union
 
@@ -50,6 +50,26 @@ def get_progress(user: dict = Depends(current_user)):
         "updated_at": iso((doc or {}).get("updated_at")),
         "access": {"unlock_to": user.get("unlock_to")},
     }
+
+
+class StartBody(BaseModel):
+    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
+@router.put("/me/start")
+def change_start(body: StartBody, user: dict = Depends(current_user)):
+    """De deelnemer kan de startdatum aanpassen (bijvoorbeeld per ongeluk te vroeg gestart)."""
+    try:
+        d = date.fromisoformat(body.date)
+    except ValueError:
+        raise HTTPException(422, "Dat is geen geldige datum.")
+    today = date.fromisoformat(today_local())
+    if d < today - timedelta(days=60) or d > today + timedelta(days=180):
+        raise HTTPException(422, "Kies een datum binnen het afgelopen en komende half jaar.")
+    get_db().progress.update_one(
+        {"user_id": user["_id"]}, {"$set": {"d.me|start": d.isoformat(), "updated_at": utcnow()}}, upsert=True
+    )
+    return {"start": d.isoformat()}
 
 
 @router.post("/me/start")

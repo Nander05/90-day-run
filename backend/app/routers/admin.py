@@ -23,6 +23,7 @@ class ParticipantPatch(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     unlock_to: int | None = Field(default=None, ge=-1, le=13)  # -1 = override weghalen
     reset_start: bool | None = None
+    start_date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _member(oid):
@@ -128,6 +129,10 @@ def patch_participant(pid: str, body: ParticipantPatch):
             update.setdefault("$set", {})["unlock_to"] = body.unlock_to
     if unset:
         update["$unset"] = unset
+    if body.start_date:
+        get_db().progress.update_one(
+            {"user_id": user["_id"]}, {"$set": {"d.me|start": body.start_date, "updated_at": utcnow()}}, upsert=True
+        )
     if body.reset_start:
         get_db().progress.update_one({"user_id": user["_id"]}, {"$unset": {"d.me|start": ""}})
     if body.active is False:

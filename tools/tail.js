@@ -240,10 +240,16 @@ document.addEventListener('submit',e=>{
   else if(f.id==='pwform') doPassword(f);
   else if(f.id==='addform') doAdd(f);
   else if(f.id==='sessform') saveSession(f);
+  else if(f.id==='startform') changeStart(f);
 });
+async function changeStart(f){
+  const err=document.getElementById('sterr'), v=document.getElementById('st-date').value; err.textContent='';
+  if(!v){err.textContent='Kies eerst een datum.';return}
+  try{const r=await api('PUT','/me/start',{date:v}); OWN['me|start']=r.start; await route()}catch(e){err.textContent=e.message}
+}
 async function startRun(b){
   b.disabled=true;
-  try{const r=await api('POST','/me/start'); OWN['me|start']=r.start; location.hash==='#start'?route():(location.hash='#start')}
+  try{const n=new Date(), iso=n.getFullYear()+'-'+pad2(n.getMonth()+1)+'-'+pad2(n.getDate()); const r=get('me|start')?await api('PUT','/me/start',{date:iso}):await api('POST','/me/start'); OWN['me|start']=r.start; location.hash==='#start'?route():(location.hash='#start')}
   catch(e){b.disabled=false; b.textContent=e.message}
 }
 document.addEventListener('change',async e=>{

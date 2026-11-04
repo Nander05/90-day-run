@@ -165,11 +165,11 @@ const addDays=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
 const fmt=d=>d.getDate()+' '+MON[d.getMonth()];
 /* Dag 1 is de dag waarop de deelnemer zelf start (me|start, door de server gezet). */
 const startD=()=>{const m=String(get('me|start')||'').match(/^(\d{4})-(\d\d)-(\d\d)$/);return m?new Date(+m[1],+m[2]-1,+m[3]):null};
-const started=()=>!!startD();
+const started=()=>{const i=todayIdx();return i!=null&&i>=0};
 const todayIdx=()=>{const s=startD();return s?Math.round((day0(new Date())-s)/864e5):null};
 const dayDate=(n,i)=>{const s=startD();return s?addDays(s,(n-1)*7+i):null};
 const weekRange=n=>{const s=startD();return s?fmt(addDays(s,(n-1)*7))+' – '+fmt(addDays(s,(n-1)*7+6)):''};
-function current(){const i=todayIdx(); if(i==null) return {i:-1,w:1,d:0,state:'new'}; if(i>90) return {i,w:13,d:6,state:'after'}; const j=Math.max(0,i); return {i:j,w:Math.min(13,Math.floor(j/7)+1),d:Math.min(6,j%7),state:'run'}}
+function current(){const i=todayIdx(); if(i==null) return {i:-1,w:1,d:0,state:'new'}; if(i<0) return {i,w:1,d:0,state:'before'}; if(i>90) return {i,w:13,d:6,state:'after'}; return {i,w:Math.min(13,Math.floor(i/7)+1),d:Math.min(6,i%7),state:'run'}}
 
 /* ---- toegang: een week gaat open als de vorige gelezen en de training gevolgd is ---- */
 const prevWeek=n=>n===9?7:n-1;
@@ -239,13 +239,17 @@ function gateCard(n){
 function liveCard(){
   const s=nextSession(); if(!s) return '';
   return `<div class="card livecard"><div class="mono">Volgende live training</div><b style="font-size:1.1rem">${h(s.title)}</b><span class="muted">${fmtWhen(s.starts_at)}</span><div class="row">${s.join_url?`<a class="btn" href="${h(s.join_url)}" target="_blank" rel="noopener">Doe mee</a>`:''}<a class="btn ghost" href="#live">Alle trainingen</a></div></div>`}
+function startForm(){
+  const iso=get('me|start')||'';
+  return `<form id="startform" class="card" novalidate><div class="mono">Startdatum</div><div class="row"><input id="st-date" type="date" value="${h(iso)}" aria-label="Startdatum" style="width:auto"><button class="btn ghost sm" type="submit">${iso?'Datum wijzigen':'Op deze datum starten'}</button></div><p class="err" id="sterr" role="alert"></p></form>`}
 function vWelcome(){
-  return `<div class="sec" style="gap:28px"><div class="hero">${ring()}<div class="sec"><div class="kick">Sales Foundations 90</div><h1>Klaar om te starten?</h1>
-  <p style="font-size:1.1rem;margin:0">Dag 1 begint op het moment dat jij op start drukt. Je leest week 1, volgt de live training en daarna gaat week 2 open. Zo bepaal jij je eigen tempo.</p>
-  <div class="row"><button class="btn big-btn" type="button" data-start="1">Start mijn 90 dagen</button><a class="btn ghost" href="#mijn-90">Eerst mijn doel opschrijven</a></div></div></div>${liveCard()}</div>`}
+  const c=current(), before=c.state==='before', dd=-c.i;
+  return `<div class="sec" style="gap:28px"><div class="hero">${ring()}<div class="sec"><div class="kick">Sales Foundations 90</div><h1>${before?'Nog '+dd+(dd===1?' dag':' dagen'):'Klaar om te starten?'}</h1>
+  <p style="font-size:1.1rem;margin:0">${before?'Je start op '+fmt(startD())+'. Tot dan blijven de weken dicht.':'Dag 1 begint op het moment dat jij op start drukt. Je leest week 1, volgt de live training en daarna gaat week 2 open. Zo bepaal jij je eigen tempo.'}</p>
+  <div class="row"><button class="btn big-btn" type="button" data-start="1">${before?'Toch vandaag starten':'Start mijn 90 dagen'}</button><a class="btn ghost" href="#mijn-90">Mijn doel opschrijven</a></div></div></div>${startForm()}${liveCard()}</div>`}
 function vStart(){
   const c=current();
-  if(c.state==='new'&&!VIEW) return vWelcome();
+  if((c.state==='new'||c.state==='before')&&!VIEW) return vWelcome();
   const fw=frontier(), w=WEEKS[(fw||c.w)-1], name=get('me|naam');
   let head, action='';
   if(c.state==='new') head=`<div class="kick">Nog niet gestart</div><h1>Run nog niet begonnen</h1>`;
@@ -259,7 +263,7 @@ function vStart(){
   const first=!get('me|doel')?`<div class="card"><div class="mono">Eerste stap</div><p style="margin:6px 0 12px"><b>Schrijf je doel voor dag 90 op.</b> Het is het enige dat je nodig hebt om te starten.</p><a class="btn" href="#mijn-90">Mijn 90 dagen invullen</a></div>`:`<div class="card"><div class="mono">Mijn doel${name?' · '+h(name):''}</div><p style="margin:6px 0 0;font-size:1.1rem">${h(get('me|doel'))}</p></div>`;
   return `<div class="sec"><div class="hero">${ring()}<div class="sec">${head}${action}<div class="row"><a class="btn ghost" href="#week-${fw||c.w}">Open week ${fw||c.w}</a><a class="btn ghost" href="#reis">Hele reis</a></div></div></div>
   ${fw?gateCard(fw):''}${liveCard()}${first}
-  <div class="stats" id="stats"></div></div>`}
+  <div class="stats" id="stats"></div>${VIEW?'':startForm()}</div>`}
 function statsHtml(){return `<div><span class="mono">Gewoonte-dagen</span><b>${totalDays()}<span class="muted" style="font-size:1rem"> / 84</span></b></div><div><span class="mono">Reeks</span><b>${streak()}</b></div><div><span class="mono">Weken afgerond</span><b>${weeksDone()}<span class="muted" style="font-size:1rem"> / 13</span></b></div>`}
 
 function vReis(){
@@ -679,10 +683,16 @@ document.addEventListener('submit',e=>{
   else if(f.id==='pwform') doPassword(f);
   else if(f.id==='addform') doAdd(f);
   else if(f.id==='sessform') saveSession(f);
+  else if(f.id==='startform') changeStart(f);
 });
+async function changeStart(f){
+  const err=document.getElementById('sterr'), v=document.getElementById('st-date').value; err.textContent='';
+  if(!v){err.textContent='Kies eerst een datum.';return}
+  try{const r=await api('PUT','/me/start',{date:v}); OWN['me|start']=r.start; await route()}catch(e){err.textContent=e.message}
+}
 async function startRun(b){
   b.disabled=true;
-  try{const r=await api('POST','/me/start'); OWN['me|start']=r.start; location.hash==='#start'?route():(location.hash='#start')}
+  try{const n=new Date(), iso=n.getFullYear()+'-'+pad2(n.getMonth()+1)+'-'+pad2(n.getDate()); const r=get('me|start')?await api('PUT','/me/start',{date:iso}):await api('POST','/me/start'); OWN['me|start']=r.start; location.hash==='#start'?route():(location.hash='#start')}
   catch(e){b.disabled=false; b.textContent=e.message}
 }
 document.addEventListener('change',async e=>{
