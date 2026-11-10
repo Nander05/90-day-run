@@ -336,16 +336,17 @@ function vBonus(){return `<article class="sec" style="gap:40px"><header class="w
   <section class="sec"><div class="sechead"><h2>Oefening in de ruimte</h2></div><p>${h(BONUS.oef)}</p>${fiche('bonus',BONUS.fi[0])}</section>
   <section class="sec"><div class="sechead"><h2>Opdracht</h2></div><p>${h(BONUS.opdr)}</p>${fiche('bonus',BONUS.fi[1])}</section></article>`}
 
-function doelGids(){
+function doelInhoud(){
   const rows=[['Ik wil beter worden in verkopen.','Ik voer elke week minstens vijf echte gesprekken en vraag bij elk gesprek om een volgende stap.'],['Ik wil veel nieuwe mensen.','Ik nodig in 90 dagen 30 mensen uit voor een kennismaking.'],['Ik wil niet meer bang zijn om te vragen.','Ik stel elke week één keer de vraag waar ik tegenop zie.'],['Ik wil succes.','Over 90 dagen voel ik me rustig in een gesprek en weet ik wat mijn volgende stap is.']];
-  return `<details class="card" open><summary class="mono" style="cursor:pointer">Voor vrijdag: jouw doel voor de 90 dagen</summary><div class="sec" style="gap:14px;margin-top:12px">
+  return `<div class="sec" style="gap:14px">
   <p style="margin:0"><b>Je hoeft voor de eerste training maar één ding te doen: nadenken over je doel voor deze 90 dagen en waarom dat voor jou belangrijk is.</b> Niets invullen, niets delen. Op vrijdag schrijf je het samen op.</p>
   <div><div class="mono">Waarom een doel?</div><p style="margin:6px 0 0">Zonder doel blijft deze reis losse oefening. Met een doel weet je bij elke training waarvoor je het doet.</p></div>
   <div><div class="mono">Een goed doel is</div><ul class="list"><li><b>van jou.</b> Het past bij jouw leven, niet bij dat van een ander.</li><li><b>zichtbaar.</b> Iemand kan zien dat je het doet.</li><li><b>afhankelijk van je eigen gedrag.</b> Jij beslist of het lukt, niet de ander.</li></ul></div>
   <div><div class="mono">Voorbeelden</div><div class="cols2" style="margin-top:8px">${rows.map(([a,b])=>`<div class="card"><span class="muted">Minder bruikbaar</span><span>${h(a)}</span><span class="muted">Beter</span><b>${h(b)}</b></div>`).join('')}</div></div>
   <p class="muted" style="margin:0">Geen bedragen of inkomsten in je doel. We tellen wat je doet, niet wat je verkoopt. Resultaten verschillen per persoon.</p>
   <div><div class="mono">Denk er alvast over na</div><ul class="list"><li>Wat wil ik over 90 dagen anders zien in mijn gedrag?</li><li>Waarom is dat voor mij belangrijk?</li><li>Wat zou mijn eerste kleine stap zijn?</li></ul></div>
-  <p style="margin:0">Tip: probeer het in één of twee zinnen te zeggen. Dat is je startpunt op vrijdag.</p></div></details>`}
+  <p style="margin:0">Tip: probeer het in één of twee zinnen te zeggen. Dat is je startpunt op vrijdag.</p></div>`}
+function doelGids(){return `<details class="card" open><summary class="mono" style="cursor:pointer">Voor vrijdag: jouw doel voor de 90 dagen</summary><div style="margin-top:12px">${doelInhoud()}</div></details>`}
 function vMijn(){const mode=get('me|mode')||'full';
   return `<div class="sec" style="gap:28px"><div><div class="kick">Sales Foundations 90 · my vision</div><h1>Mijn 90 dagen</h1></div>
   ${doelGids()}
@@ -509,7 +510,7 @@ function draw(raw,prefix){
   mainEl().innerHTML=html;
   if(prefix) mainEl().querySelectorAll('input,textarea,select,button[data-day]').forEach(e=>{e.disabled=true});
   setNav(r.startsWith('week')||r==='bonus'?'reis':r);
-  paint();
+  paint(); showWelcome();
   if(anchor){const e=document.getElementById(anchor); if(e) e.scrollIntoView(); else window.scrollTo(0,0)} else window.scrollTo(0,0);
 }
 let seq=0;
@@ -669,6 +670,20 @@ async function logout(){
   history.replaceState(null,'','#start'); showLogin();
 }
 
+/* ---- welkomstvenster (eenmalig, per deelnemer) ---- */
+function showWelcome(){
+  if(VIEW||!ME||get('me|welkom')||document.getElementById('welkom')) return;
+  const o=document.createElement('div'); o.id='welkom'; o.className='modal'; o.setAttribute('role','dialog'); o.setAttribute('aria-modal','true'); o.setAttribute('aria-labelledby','welkom-t');
+  o.innerHTML=`<div class="modal-box"><div class="kick">Welkom${ME.name?', '+h(ME.name.split(' ')[0]):''}</div><h2 id="welkom-t" style="margin:0">Voor vrijdag: jouw doel voor de 90 dagen</h2>${doelInhoud()}<div class="row"><button class="btn" type="button" data-welkom="1" id="welkom-ok">Ik heb het gelezen</button></div><p class="muted small" style="margin:0">Je vindt deze uitleg later terug onder Mijn 90.</p></div>`;
+  document.body.appendChild(o); document.body.classList.add('modal-open');
+  const ok=document.getElementById('welkom-ok'); if(ok) ok.focus({preventScroll:true}); o.scrollTop=0;
+}
+function closeWelcome(){
+  const o=document.getElementById('welkom'); if(o) o.remove(); document.body.classList.remove('modal-open');
+  if(!VIEW&&ME) put('me|welkom','1');
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('welkom')) closeWelcome()});
+
 /* ---- invoer ---- */
 document.addEventListener('click',e=>{
   const d=e.target.closest('[data-day]');
@@ -680,6 +695,7 @@ document.addEventListener('click',e=>{
     if(d.id==='todaybtn'){const r=document.querySelector('.ringsvg'); if(r){const t=document.createElement('div'); t.innerHTML=ring(); r.replaceWith(t.firstChild)}}
     return;
   }
+  if(e.target.closest('[data-welkom]')) return closeWelcome();
   const st=e.target.closest('[data-start]'); if(st&&!VIEW) return startRun(st);
   const sa=e.target.closest('[data-sess]'); if(sa) return sessAction(sa);
   const a=e.target.closest('[data-act]'); if(a) return adminAction(a);

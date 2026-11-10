@@ -55,7 +55,7 @@ function draw(raw,prefix){
   mainEl().innerHTML=html;
   if(prefix) mainEl().querySelectorAll('input,textarea,select,button[data-day]').forEach(e=>{e.disabled=true});
   setNav(r.startsWith('week')||r==='bonus'?'reis':r);
-  paint();
+  paint(); showWelcome();
   if(anchor){const e=document.getElementById(anchor); if(e) e.scrollIntoView(); else window.scrollTo(0,0)} else window.scrollTo(0,0);
 }
 let seq=0;
@@ -215,6 +215,20 @@ async function logout(){
   history.replaceState(null,'','#start'); showLogin();
 }
 
+/* ---- welkomstvenster (eenmalig, per deelnemer) ---- */
+function showWelcome(){
+  if(VIEW||!ME||get('me|welkom')||document.getElementById('welkom')) return;
+  const o=document.createElement('div'); o.id='welkom'; o.className='modal'; o.setAttribute('role','dialog'); o.setAttribute('aria-modal','true'); o.setAttribute('aria-labelledby','welkom-t');
+  o.innerHTML=`<div class="modal-box"><div class="kick">Welkom${ME.name?', '+h(ME.name.split(' ')[0]):''}</div><h2 id="welkom-t" style="margin:0">Voor vrijdag: jouw doel voor de 90 dagen</h2>${doelInhoud()}<div class="row"><button class="btn" type="button" data-welkom="1" id="welkom-ok">Ik heb het gelezen</button></div><p class="muted small" style="margin:0">Je vindt deze uitleg later terug onder Mijn 90.</p></div>`;
+  document.body.appendChild(o); document.body.classList.add('modal-open');
+  const ok=document.getElementById('welkom-ok'); if(ok) ok.focus({preventScroll:true}); o.scrollTop=0;
+}
+function closeWelcome(){
+  const o=document.getElementById('welkom'); if(o) o.remove(); document.body.classList.remove('modal-open');
+  if(!VIEW&&ME) put('me|welkom','1');
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('welkom')) closeWelcome()});
+
 /* ---- invoer ---- */
 document.addEventListener('click',e=>{
   const d=e.target.closest('[data-day]');
@@ -226,6 +240,7 @@ document.addEventListener('click',e=>{
     if(d.id==='todaybtn'){const r=document.querySelector('.ringsvg'); if(r){const t=document.createElement('div'); t.innerHTML=ring(); r.replaceWith(t.firstChild)}}
     return;
   }
+  if(e.target.closest('[data-welkom]')) return closeWelcome();
   const st=e.target.closest('[data-start]'); if(st&&!VIEW) return startRun(st);
   const sa=e.target.closest('[data-sess]'); if(sa) return sessAction(sa);
   const a=e.target.closest('[data-act]'); if(a) return adminAction(a);
