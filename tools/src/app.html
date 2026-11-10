@@ -399,7 +399,7 @@ function vStart(){
     if(c.w===8) action=`<a class="today" href="#week-8" style="text-decoration:none"><span class="box" style="border-color:var(--accent)"></span><span><b>Inhaalweek.</b><br><span class="muted">Haal in wat bleef liggen, of laad op voor de tweede helft.</span></span></a>`;
     else if(!isOpen(c.w)) action=`<a class="today lockedtoday" href="#week-${c.w}" style="text-decoration:none">${LOCK}<span><b>Week ${c.w} is nog dicht.</b><br><span class="muted">Rond eerst week ${prevWeek(c.w)} af: lezen en de training volgen.</span></span></a>`;
     else{const k=`w${c.w}|d${c.d}`; action=`<button class="today" id="todaybtn" data-day="${k}" aria-pressed="${get(k)?'true':'false'}"><span class="box">✓</span><span><b id="todaylab">${get(k)?'Vandaag gedaan':'Vandaag afvinken'}</b><br><span class="muted">${h(cw.gew)}</span></span></button>`}}
-  const first=!get('me|doel')?`<div class="card"><div class="mono">Eerste stap</div><p style="margin:6px 0 12px"><b>Schrijf je doel voor dag 90 op.</b> Het is het enige dat je nodig hebt om te starten.</p><a class="btn" href="#mijn-90">Mijn 90 dagen invullen</a></div>`:`<div class="card"><div class="mono">Mijn doel${name?' · '+h(name):''}</div><p style="margin:6px 0 0;font-size:1.1rem">${h(get('me|doel'))}</p></div>`;
+  const first=!get('me|doel')?`<div class="card"><div class="mono">Eerste stap</div><p style="margin:6px 0 12px"><b>Denk na over je doel voor de 90 dagen en waarom.</b> Meer hoef je voor vrijdag niet te doen. Lees eerst de uitleg met voorbeelden.</p><a class="btn" href="#mijn-90">Lees de uitleg</a></div>`:`<div class="card"><div class="mono">Mijn doel${name?' · '+h(name):''}</div><p style="margin:6px 0 0;font-size:1.1rem">${h(get('me|doel'))}</p></div>`;
   return `<div class="sec"><div class="hero">${ring()}<div class="sec">${head}${action}<div class="row"><a class="btn ghost" href="#week-${fw||c.w}">Open week ${fw||c.w}</a><a class="btn ghost" href="#reis">Hele reis</a></div></div></div>
   ${fw?gateCard(fw):''}${liveCard()}${first}
   <div class="stats" id="stats"></div>${VIEW?'':startForm()}</div>`}
@@ -475,8 +475,19 @@ function vBonus(){return `<article class="sec" style="gap:40px"><header class="w
   <section class="sec"><div class="sechead"><h2>Oefening in de ruimte</h2></div><p>${h(BONUS.oef)}</p>${fiche('bonus',BONUS.fi[0])}</section>
   <section class="sec"><div class="sechead"><h2>Opdracht</h2></div><p>${h(BONUS.opdr)}</p>${fiche('bonus',BONUS.fi[1])}</section></article>`}
 
+function doelGids(){
+  const rows=[['Ik wil beter worden in verkopen.','Ik voer elke week minstens vijf echte gesprekken en vraag bij elk gesprek om een volgende stap.'],['Ik wil veel nieuwe mensen.','Ik nodig in 90 dagen 30 mensen uit voor een kennismaking.'],['Ik wil niet meer bang zijn om te vragen.','Ik stel elke week één keer de vraag waar ik tegenop zie.'],['Ik wil succes.','Over 90 dagen voel ik me rustig in een gesprek en weet ik wat mijn volgende stap is.']];
+  return `<details class="card" open><summary class="mono" style="cursor:pointer">Voor vrijdag: jouw doel voor de 90 dagen</summary><div class="sec" style="gap:14px;margin-top:12px">
+  <p style="margin:0"><b>Je hoeft voor de eerste training maar één ding te doen: nadenken over je doel voor deze 90 dagen en waarom dat voor jou belangrijk is.</b> Niets invullen, niets delen. Op vrijdag schrijf je het samen op.</p>
+  <div><div class="mono">Waarom een doel?</div><p style="margin:6px 0 0">Zonder doel blijft deze reis losse oefening. Met een doel weet je bij elke training waarvoor je het doet.</p></div>
+  <div><div class="mono">Een goed doel is</div><ul class="list"><li><b>van jou.</b> Het past bij jouw leven, niet bij dat van een ander.</li><li><b>zichtbaar.</b> Iemand kan zien dat je het doet.</li><li><b>afhankelijk van je eigen gedrag.</b> Jij beslist of het lukt, niet de ander.</li></ul></div>
+  <div><div class="mono">Voorbeelden</div><div class="cols2" style="margin-top:8px">${rows.map(([a,b])=>`<div class="card"><span class="muted">Minder bruikbaar</span><span>${h(a)}</span><span class="muted">Beter</span><b>${h(b)}</b></div>`).join('')}</div></div>
+  <p class="muted" style="margin:0">Geen bedragen of inkomsten in je doel. We tellen wat je doet, niet wat je verkoopt. Resultaten verschillen per persoon.</p>
+  <div><div class="mono">Denk er alvast over na</div><ul class="list"><li>Wat wil ik over 90 dagen anders zien in mijn gedrag?</li><li>Waarom is dat voor mij belangrijk?</li><li>Wat zou mijn eerste kleine stap zijn?</li></ul></div>
+  <p style="margin:0">Tip: probeer het in één of twee zinnen te zeggen. Dat is je startpunt op vrijdag.</p></div></details>`}
 function vMijn(){const mode=get('me|mode')||'full';
   return `<div class="sec" style="gap:28px"><div><div class="kick">Sales Foundations 90 · my vision</div><h1>Mijn 90 dagen</h1></div>
+  ${doelGids()}
   <div class="f"><label class="lb" for="f_me_naam">Dit boek is van</label><input type="text" id="f_me_naam" data-k="me|naam" value="${h(get('me|naam')||'')}" autocomplete="name"></div>
   ${text('me|doel','Mijn doel: wat wil jij anders zien op dag 90?',3)}${text('me|waarom','Waarom dit belangrijk is voor mij',3)}
   <div class="f" role="radiogroup" aria-label="Ik kies"><span class="lb">Ik kies</span><div class="cols2">
