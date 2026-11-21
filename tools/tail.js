@@ -134,7 +134,7 @@ async function vBeheer(){
    <div class="cols2"><div class="f"><label class="lb" for="ad-name">Naam</label><input id="ad-name" name="name" type="text" autocomplete="off"></div><div class="f"><label class="lb" for="ad-email">E-mail</label><input id="ad-email" name="email" type="email" autocomplete="off"></div></div>
    <p class="err" id="aerr" role="alert"></p><div><button class="btn" type="submit">Uitnodiging maken</button></div></form>
   ${link}
-  <section class="sec"><div class="sechead"><h2>${ps.length} ${ps.length===1?'deelnemer':'deelnemers'}</h2><button class="btn ghost sm" type="button" data-act="refresh">Vernieuwen</button></div>${cards||'<p class="muted">Nog geen deelnemers. Maak hierboven de eerste uitnodiging.</p>'}</section>${mediaAdminHtml()}</div>`}
+  <details class="sec"><summary class="sechead" style="cursor:pointer"><h2 style="display:inline">${ps.length} ${ps.length===1?'deelnemer':'deelnemers'}</h2><span class="muted">Tik om open of dicht te klappen</span></summary><div class="sec" style="margin-top:16px"><div><button class="btn ghost sm" type="button" data-act="refresh">Vernieuwen</button></div>${cards||'<p class="muted">Nog geen deelnemers. Maak hierboven de eerste uitnodiging.</p>'}</div></details>${mediaAdminHtml()}</div>`}
 async function adminAction(a){
   const act=a.dataset.act,id=a.dataset.id;
   try{
@@ -292,8 +292,11 @@ document.addEventListener('change',onField);
 
 /* ---- terug in beeld: nieuwste gegevens ophalen ---- */
 const same=(a,b)=>{const ka=Object.keys(a),kb=Object.keys(b);return ka.length===kb.length&&ka.every(k=>a[k]===b[k])};
+let FPICK=0; // moment waarop een bestandskiezer openging: de pagina mag dan niet opnieuw tekenen
+document.addEventListener('click',e=>{if(e.target.matches&&e.target.matches('input[type=file]')) FPICK=Date.now()},true);
 document.addEventListener('visibilitychange',async()=>{
   if(document.visibilityState==='hidden'){flush(true);return}
+  if(Date.now()-FPICK<300000) return;
   if(ME&&ME.role==='admin'&&location.hash==='#beheer'&&!document.activeElement.matches('input,textarea')){route();return}
   if(!ME||VIEW||Object.keys(pend.set).length||pend.unset.size||inflight) return;
   try{
