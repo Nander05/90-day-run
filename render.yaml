@@ -21,3 +21,9 @@ services:
         sync: false
       - key: ADMIN_NAME
         value: Nander
+      - key: CF_ACCOUNT_ID # Cloudflare Stream, zie README
+        sync: false
+      - key: CF_STREAM_TOKEN
+        sync: false
+      - key: CF_STREAM_SUBDOMAIN
+        sync: false

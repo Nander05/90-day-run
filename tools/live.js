@@ -42,6 +42,7 @@ function vLive(){
   <p class="muted" style="margin:8px 0 0">Hier staan de live trainingen en de opnames. Heb je er een gemist? Kijk de opname en vink daarna in de week aan dat je de training hebt gevolgd.</p></div>
   ${admin?sessForm():''}
   <section class="sec"><div class="sechead"><h2>Eerstvolgende</h2></div>${up.map(x=>sessCard(x,admin)).join('')||'<p class="muted">Er staat nog geen training gepland.</p>'}</section>
+  ${recSection()}
   <section class="sec"><div class="sechead"><h2>Opnames</h2></div>${past.map(x=>sessCard(x,admin)).join('')||'<p class="muted">Nog geen afgelopen trainingen.</p>'}</section></div>`}
 
 async function saveSession(f){

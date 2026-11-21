@@ -53,7 +53,7 @@ rest = L(I_H, I_ROUTER - 1)                     # helpers t/m vMateriaal, voor '
 rest = re.sub(r'<section class="sec"><div class="sechead"><h2>Back-up</h2></div>.*?<div id="bkout"></div></section>', '${accountHtml()}', rest, flags=re.S)
 assert "bkout" not in rest and "accountHtml" in rest
 tail = (root/"tools/tail.js").read_text()
-live = (root/"tools/live.js").read_text()
+live = (root/"tools/live.js").read_text() + "\n" + (root/"tools/media.js").read_text()
 app = head + "\n" + js + "\n" + state + "\n" + rest + "\n" + live + "\n" + tail
 assert "localStorage" not in app and "bindBackup" not in app and "persist" not in app, "oude opslag nog aanwezig"
 (out/"app.js").write_text("'use strict';\n" + app.lstrip())

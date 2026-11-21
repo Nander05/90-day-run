@@ -79,6 +79,7 @@ async function route(){
     return draw(vm[2]||'start','deelnemer-'+vm[1]+'-');
   }
   VIEW=null;
+  if(/^(live|materiaal|bonus|week-\d+)/.test(raw)) await loadMedia();
   if(raw==='live') await loadSessions();
   else if(ME.role==='member'){ // toegang kan door de beheerder zijn aangepast
     const wm=raw.match(/^week-(\d+)/);
@@ -88,6 +89,7 @@ async function route(){
   if(raw==='beheer'){
     if(ME.role!=='admin'){location.hash='#start';return}
     mainEl().innerHTML=SKEL;
+    await loadMedia();
     let html; try{html=await vBeheer()}catch(e){html=`<p class="err">${h(e.message)}</p>`}
     if(my!==seq) return;
     enter('beheer'); mainEl().innerHTML=html; setNav('beheer'); paint(); window.scrollTo(0,0); return;
@@ -129,7 +131,7 @@ async function vBeheer(){
    <div class="cols2"><div class="f"><label class="lb" for="ad-name">Naam</label><input id="ad-name" name="name" type="text" autocomplete="off"></div><div class="f"><label class="lb" for="ad-email">E-mail</label><input id="ad-email" name="email" type="email" autocomplete="off"></div></div>
    <p class="err" id="aerr" role="alert"></p><div><button class="btn" type="submit">Uitnodiging maken</button></div></form>
   ${link}
-  <section class="sec"><div class="sechead"><h2>${ps.length} ${ps.length===1?'deelnemer':'deelnemers'}</h2><button class="btn ghost sm" type="button" data-act="refresh">Vernieuwen</button></div>${cards||'<p class="muted">Nog geen deelnemers. Maak hierboven de eerste uitnodiging.</p>'}</section></div>`}
+  <section class="sec"><div class="sechead"><h2>${ps.length} ${ps.length===1?'deelnemer':'deelnemers'}</h2><button class="btn ghost sm" type="button" data-act="refresh">Vernieuwen</button></div>${cards||'<p class="muted">Nog geen deelnemers. Maak hierboven de eerste uitnodiging.</p>'}</section>${mediaAdminHtml()}</div>`}
 async function adminAction(a){
   const act=a.dataset.act,id=a.dataset.id;
   try{
@@ -164,7 +166,7 @@ function showLogin(msg){
   <p class="muted small">Alleen jij en je begeleider kunnen jouw boek zien. Andere deelnemers zien niets van jou.</p></div>`;
 }
 async function refreshAccess(){try{const p=await api('GET','/me/progress'); ACCESS=p.access||ACCESS}catch(e){}}
-async function loadOwn(){const p=await api('GET','/me/progress'); OWN=p.d||{}; ACCESS=p.access||{unlock_to:null}; await loadSessions()}
+async function loadOwn(){const p=await api('GET','/me/progress'); OWN=p.d||{}; ACCESS=p.access||{unlock_to:null}; await loadSessions(); await loadMedia()}
 async function doLogin(f){
   const err=document.getElementById('lerr'),btn=f.querySelector('button'); err.textContent=''; btn.disabled=true;
   try{
@@ -211,7 +213,7 @@ async function doAdd(f){
 async function logout(){
   await flush(true);
   try{await api('POST','/auth/logout')}catch(e){}
-  ME=null;OWN={};VIEW=null;LASTLINK=null;ACCESS={unlock_to:null};SESS=[];EDITING=null;
+  ME=null;OWN={};VIEW=null;LASTLINK=null;ACCESS={unlock_to:null};SESS=[];FILES=[];FSLOTS=[];RECS=[];EDITING=null;
   history.replaceState(null,'','#start'); showLogin();
 }
 
@@ -230,7 +232,8 @@ function closeWelcome(){
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('welkom')) closeWelcome()});
 
 /* ---- invoer ---- */
-document.addEventListener('click',e=>{
+document.addEventListener('click',async e=>{
+  if(await mediaClick(e)) return;
   const d=e.target.closest('[data-day]');
   if(d&&!VIEW){
     const k=d.dataset.day,on=!get(k); put(k,on);
@@ -268,6 +271,7 @@ async function startRun(b){
   catch(e){b.disabled=false; b.textContent=e.message}
 }
 document.addEventListener('change',async e=>{
+  if(await mediaChange(e)) return;
   const u=e.target.closest&&e.target.closest('[data-unlock]'); if(!u) return;
   try{await api('PATCH','/admin/participants/'+u.dataset.unlock,{unlock_to:+u.value}); status('Opgeslagen')}catch(err){u.title=err.message}
 });
