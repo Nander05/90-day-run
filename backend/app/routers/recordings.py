@@ -114,6 +114,19 @@ def patch(cid: str, body: ChapterPatch):
     return {"recording": _out(c)}
 
 
+class TrainingVisible(BaseModel):
+    visible: bool
+
+
+@admin.patch("/training/{n}")
+def patch_training(n: int, body: TrainingVisible):
+    """Alle hoofdstukken van één training in één keer zichtbaar of verborgen maken."""
+    res = get_db().chapters.update_many({"training": n}, {"$set": {"visible": body.visible}})
+    if not res.matched_count:
+        raise HTTPException(404, "Deze training heeft nog geen hoofdstukken.")
+    return {"changed": res.matched_count}
+
+
 @admin.delete("/{cid}")
 def delete(cid: str):
     if not get_db().chapters.delete_one({"_id": to_oid(cid)}).deleted_count:
