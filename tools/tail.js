@@ -15,13 +15,14 @@ function accountHtml(){
 const SKEL='<div class="skel" aria-label="Laden"><i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i></div>';
 let LASTKEY='';
 function enter(key){const m=mainEl(); if(key===LASTKEY) return; LASTKEY=key; m.classList.remove('enter'); void m.offsetWidth; m.classList.add('enter'); setTimeout(()=>m.classList.remove('enter'),900)}
-const NAV=[['start','Vandaag'],['reis','Reis'],['live','Live'],['mijn-90','Mijn 90'],['voortgang','Voortgang'],['materiaal','Materiaal']];
+const NAV=[['start','Vandaag'],['reis','Reis'],['live','Live'],['meer','Meer']];
 const ICONS={start:'<path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4v-5H9v5H5a1 1 0 0 1-1-1z"/>',
  reis:'<path d="M5 20V4M5 5h11l-2 3.5L16 12H5"/>',
  live:'<circle cx="12" cy="12" r="2.2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/>',
  'mijn-90':'<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11"/>',
  voortgang:'<path d="M5 20V10M12 20V4M19 20v-7"/>',
  materiaal:'<path d="M4 7a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/>',
+ meer:'<circle cx="5.5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/>',
  beheer:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.8M17.5 14.5a5 5 0 0 1 3 4.5"/>'};
 const navItem=(href,id,l,active)=>`<a href="${href}" ${id===active?'aria-current="page"':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]||''}</svg><span>${l}</span></a>`;
 const mainEl=()=>document.getElementById('app');
@@ -41,7 +42,9 @@ function viewFor(raw){
   else if(r==='voortgang') v=vVoortgang();
   else if(r==='materiaal') v=vMateriaal();
   else if(r==='live') v=vLive();
+  else if(r==='meer') v=vMeer();
   else {r='start';v=vStart()}
+  if(['mijn-90','voortgang','materiaal'].includes(r)) v='<a class="btn ghost sm" href="#meer" style="align-self:flex-start;margin-bottom:16px">← Meer</a>'+v;
   return {r,v,anchor};
 }
 function draw(raw,prefix){
@@ -54,7 +57,7 @@ function draw(raw,prefix){
   enter(prefix+raw);
   mainEl().innerHTML=html;
   if(prefix) mainEl().querySelectorAll('input,textarea,select,button[data-day]').forEach(e=>{e.disabled=true});
-  setNav(r.startsWith('week')||r==='bonus'?'reis':r);
+  setNav(r.startsWith('week')||r==='bonus'?'reis':['mijn-90','voortgang','materiaal'].includes(r)?'meer':r);
   paint(); showWelcome();
   if(anchor){const e=document.getElementById(anchor); if(e) e.scrollIntoView(); else window.scrollTo(0,0)} else window.scrollTo(0,0);
 }
@@ -244,6 +247,8 @@ document.addEventListener('click',async e=>{
     return;
   }
   if(e.target.closest('[data-welkom]')) return closeWelcome();
+  const ob=e.target.closest('[data-onb]');
+  if(ob&&!VIEW){const go=+ob.dataset.onb; if(go===2&&!get('me|regels')){const er=document.getElementById('onberr'); if(er) er.textContent='Vink eerst aan dat je de afspraken hebt gelezen.'; return} ONB=go; return route()}
   const st=e.target.closest('[data-start]'); if(st&&!VIEW) return startRun(st);
   const sa=e.target.closest('[data-sess]'); if(sa) return sessAction(sa);
   const a=e.target.closest('[data-act]'); if(a) return adminAction(a);
