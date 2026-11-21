@@ -115,7 +115,7 @@ const BONUS = {
 };
 
 /* ---- server en opslag ---- */
-let ME=null, OWN={}, VIEW=null, ACCESS={unlock_to:null}, SESS=[], FILES=[], FSLOTS=[], RECS=[], LINKED=false; // ME: ingelogde gebruiker, OWN: eigen boek, VIEW: boek van een deelnemer (beheerder, alleen lezen)
+let ME=null, OWN={}, VIEW=null, ACCESS={unlock_to:null}, SESS=[], FILES=[], FSLOTS=[], RECS=[], LINKED=false, ONB=1; // ME: ingelogde gebruiker, OWN: eigen boek, VIEW: boek van een deelnemer (beheerder, alleen lezen)
 const get=k=>(VIEW?VIEW.d:OWN)[k];
 async function api(method,path,body,keepalive){
   const r=await fetch('/api'+path,{method,credentials:'same-origin',keepalive:!!keepalive,
@@ -238,11 +238,40 @@ function liveCard(){
 function startForm(){
   const iso=get('me|start')||'';
   return `<form id="startform" class="card" novalidate><div class="mono">Startdatum</div><div class="row"><input id="st-date" type="date" value="${h(iso)}" aria-label="Startdatum" style="width:auto"><button class="btn ghost sm" type="submit">${iso?'Datum wijzigen':'Op deze datum starten'}</button></div><p class="err" id="sterr" role="alert"></p></form>`}
-function vWelcome(){
+function vCountdown(){
   const c=current(), before=c.state==='before', dd=-c.i;
   return `<div class="sec" style="gap:28px"><div class="hero">${ring()}<div class="sec"><div class="kick">Sales Foundations 90</div><h1>${before?'Nog '+dd+(dd===1?' dag':' dagen'):'Klaar om te starten?'}</h1>
   <p style="font-size:1.1rem;margin:0">${before?'Je start op '+fmt(startD())+'. Tot dan blijven de weken dicht.':'Dag 1 begint op het moment dat jij op start drukt. Je leest week 1, volgt de live training en daarna gaat week 2 open. Zo bepaal jij je eigen tempo.'}</p>
-  <div class="row"><button class="btn big-btn" type="button" data-start="1">${before?'Toch vandaag starten':'Start mijn 90 dagen'}</button><a class="btn ghost" href="#mijn-90">Mijn doel opschrijven</a></div></div></div>${startForm()}${liveCard()}</div>`}
+  <div class="row"><button class="btn big-btn" type="button" data-start="1">${before?'Toch vandaag starten':'Start mijn 90 dagen'}</button><a class="btn ghost" href="#mijn-90">Mijn doel opschrijven</a></div></div></div>${liveCard()}</div>`}
+function vWelcome(){
+  const c=current(); if(c.state==='before') return vCountdown();
+  const mode=get('me|mode')||'full';
+  const bar=n=>`<div class="onbar" aria-hidden="true"><i style="width:${n===1?'33':'100'}%"></i></div>`;
+  if(ONB===1) return `<div class="sec onb"><div class="row" style="justify-content:space-between"><div class="kick">Sales Foundations 90</div><span class="mono">Stap 1 van 3</span></div>${bar(1)}
+  <h1>Welkom bij de run</h1><p style="font-size:1.1rem;margin:0">13 weken, elke dag één kleine actie. Eerst drie afspraken, zodat iedereen veilig en eerlijk werkt.</p>
+  <div class="rules"><div><b>Geen gezondheidsclaims.</b> Oliën genezen of behandelen niets en vervangen geen medische zorg. Spreek vanuit eigen ervaring en verwijs bij medische vragen naar een arts.</div>
+  <div><b>Geen inkomensclaims.</b> Geen bedragen en geen beloftes over verdiensten, nergens.</div>
+  <div><b>Een week gemist? Geen ramp.</b> Je pakt hem terug in de inhaalweek.</div></div>
+  <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" id="onb-ok" data-k="me|regels" ${get('me|regels')?'checked':''}><span class="box">✓</span></span><span><b>Ik heb de drie afspraken gelezen</b></span></label>
+  <p class="err" id="onberr" role="alert"></p>
+  <div><button class="btn big-btn" type="button" data-onb="2">Verder</button></div></div>`;
+  return `<div class="sec onb"><div class="row" style="justify-content:space-between"><div class="kick">Sales Foundations 90</div><span class="mono">Stap 2 en 3 van 3</span></div>${bar(2)}
+  <h1>Wat wil jij zien op dag 90?</h1>
+  ${text('me|doel','Mijn doel',2)}${text('me|waarom','Waarom is dit belangrijk voor mij?',2)}
+  <div class="f" role="radiogroup" aria-label="Ik kies"><span class="lb">Ik kies</span><div class="cols2">
+   <label class="card" style="cursor:pointer;display:flex;gap:12px"><input type="radio" name="mode" data-k="me|mode" value="light" ${mode==='light'?'checked':''}><span><b>Light</b><br><span class="muted">Sessies, gewoonte en reflectie.</span></span></label>
+   <label class="card" style="cursor:pointer;display:flex;gap:12px"><input type="radio" name="mode" data-k="me|mode" value="full" ${mode==='full'?'checked':''}><span><b>Full</b><br><span class="muted">Alles van Light plus weekopdrachten en scorebord.</span></span></label></div></div>
+  <div class="f"><label class="lb" for="f_me_buddy">Mijn buddy (optioneel)</label><input type="text" id="f_me_buddy" data-k="me|buddy" value="${h(get('me|buddy')||'')}"></div>
+  <p class="muted" style="margin:0">Dag 1 begint zodra je op start drukt. Week 2 gaat open nadat je week 1 hebt afgerond.</p>
+  <div class="row"><button class="btn big-btn" type="button" data-start="1">Start mijn 90 dagen</button><button class="btn ghost" type="button" data-onb="1">Terug</button></div></div>`}
+function vMeer(){
+  const rules=`<details class="card"><summary class="mono" style="cursor:pointer">De drie afspraken</summary><div class="rules" style="margin-top:12px"><div><b>Geen gezondheidsclaims.</b> Essentiële oliën genezen, behandelen of voorkomen geen ziekten en vervangen geen medische zorg. Spreek vanuit eigen ervaring en de officiële productinformatie, en verwijs bij medische vragen naar een arts.</div><div><b>Geen inkomensclaims.</b> Niet in de groep, niet in je posts, niet in je gesprekken. Geen bedragen, geen beloftes over verdiensten.</div><div><b>Wie een week mist, valt niet uit.</b> Je pakt het gewoon terug. Daarvoor bestaat de inhaalweek.</div></div></details>`;
+  const row=(href,t,sub)=>`<a class="wk" href="${href}"><span class="n">→</span><span><span class="t">${t}</span><br><span class="mono">${sub}</span></span><span></span></a>`;
+  return `<div class="sec" style="gap:28px"><div><div class="kick">Alles op zijn plek</div><h1>Meer</h1></div>
+  <div class="stats" id="stats"></div>
+  <section class="sec">${row('#voortgang','Mijn voortgang','Scorebord, meetmomenten en back-up')}${row('#mijn-90','Mijn doel en waarom','Je 90 dagen opgeschreven')}${row('#materiaal','Boeken en presentaties','Cursusboek, werkboek en alle decks')}</section>
+  ${rules}${VIEW?'':startForm()}</div>`}
+
 function vStart(){
   const c=current();
   if((c.state==='new'||c.state==='before')&&!VIEW) return vWelcome();
@@ -258,8 +287,7 @@ function vStart(){
     else{const k=`w${c.w}|d${c.d}`; action=`<button class="today" id="todaybtn" data-day="${k}" aria-pressed="${get(k)?'true':'false'}"><span class="box">✓</span><span><b id="todaylab">${get(k)?'Vandaag gedaan':'Vandaag afvinken'}</b><br><span class="muted">${h(cw.gew)}</span></span></button>`}}
   const first=!get('me|doel')?`<div class="card"><div class="mono">Eerste stap</div><p style="margin:6px 0 12px"><b>Denk na over je doel voor de 90 dagen en waarom.</b> Meer hoef je voor vrijdag niet te doen. Lees eerst de uitleg met voorbeelden.</p><a class="btn" href="#mijn-90">Lees de uitleg</a></div>`:`<div class="card"><div class="mono">Mijn doel${name?' · '+h(name):''}</div><p style="margin:6px 0 0;font-size:1.1rem">${h(get('me|doel'))}</p></div>`;
   return `<div class="sec"><div class="hero">${ring()}<div class="sec">${head}${action}<div class="row"><a class="btn ghost" href="#week-${fw||c.w}">Open week ${fw||c.w}</a><a class="btn ghost" href="#reis">Hele reis</a></div></div></div>
-  ${fw?gateCard(fw):''}${liveCard()}${first}
-  <div class="stats" id="stats"></div>${VIEW?'':startForm()}</div>`}
+  ${fw?gateCard(fw):''}${liveCard()}${first}</div>`}
 function statsHtml(){return `<div><span class="mono">Gewoonte-dagen</span><b>${totalDays()}<span class="muted" style="font-size:1rem"> / 84</span></b></div><div><span class="mono">Reeks</span><b>${streak()}</b></div><div><span class="mono">Weken afgerond</span><b>${weeksDone()}<span class="muted" style="font-size:1rem"> / 13</span></b></div>`}
 
 function vReis(){
@@ -309,7 +337,7 @@ function vWeek(n){
   const fi=FI[n]||[], oef=fi.filter(f=>f.p==='oef'), opdr=fi.filter(f=>f.p==='opdr');
   let o=`<article class="sec" style="gap:40px">`;
   o+=`<header class="wkhead"><div class="kick">Sales Foundations 90 · Week ${String(n).padStart(2,'0')} / 13 · ${h(w.ph)}</div><h1>${h(w.title)}.</h1><p style="font-size:1.15rem;margin:0">${h(w.sub)}</p><div class="row"><span class="pill">Week ${n}${weekRange(n)?' · '+weekRange(n):''}</span><span class="pill">Training ${String(w.mod).padStart(2,'0')}</span></div></header>`;
-  o+=`<section class="sec"><div class="sechead"><h2>De training</h2><span class="mono">Live</span></div>${m?`<p style="font-size:1.12rem"><b>${h(m.thesis)}</b></p>`:''}
+  o+=`<section class="sec"><div class="sechead"><h2>Kijk · de training</h2><span class="mono">Live</span></div>${m?`<p style="font-size:1.12rem"><b>${h(m.thesis)}</b></p>`:''}
    <div class="row">${fileBtn('deck-'+w.mod,'Open de presentatie','btn')}${fileBtn('cursusboek','Cursusboek · hoofdstuk '+w.mod,'btn ghost')}</div>${recBlock(w.mod)}
    ${m?`<div class="cols2"><div><div class="mono" style="margin-bottom:8px">Na deze training kun je</div><ul class="list">${m.goals.map(g=>`<li>${h(g.replace(/;$|\.$/,''))}</li>`).join('')}</ul></div><div><div class="mono" style="margin-bottom:8px">Kernpunten</div><ul class="list">${m.kern.map(g=>`<li>${h(g)}</li>`).join('')}</ul></div></div>
    ${m.beeld?`<div class="card"><div class="mono">Het beeld van deze week</div><p style="margin:4px 0 0;font-size:1.15rem"><b>${h(sentence(m.beeld))}</b></p></div>`:''}`:''}
@@ -318,17 +346,17 @@ function vWeek(n){
    <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" data-k="${sc}|read" ${get(sc+'|read')?'checked':''}><span class="box">✓</span></span><span><b>Hoofdstuk gelezen</b><br><span class="muted">Cursusboek, hoofdstuk ${w.mod}</span></span></label>
    <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" data-k="${sc}|trained" ${get(sc+'|trained')?'checked':''}><span class="box">✓</span></span><span><b>Live training gevolgd</b><br><span class="muted">Live of via de opname</span></span></label>
    <p class="muted gatehint" id="gatehint" data-w="${n}" style="margin:0">${gateHint(n)}</p></div></section>`;
-  o+=`<section class="sec"><div class="sechead"><h2>Oefening in de ruimte</h2></div>${m?`<p>${h(m.oef)}</p>`:''}${oef.map(f=>fiche(sc,f)).join('')}</section>`;
-  o+=`<section class="sec"><div class="sechead"><h2>De weekopdracht</h2>${full?'':'<span class="pill">Light · optioneel</span>'}</div><details ${full?'open':''}><summary>${full?'Weekopdracht en fiche':'Toon de weekopdracht'}</summary><div class="sec" style="margin-top:10px">${m?`<p>${h(m.opdr)}</p>`:''}${opdr.map(f=>fiche(sc,f)).join('')}</div></details></section>`;
-  o+=`<section class="sec"><div class="sechead"><h2>De gewoonte</h2><span class="mono" id="wkcount"></span></div><p class="q">${h(w.gew)}</p><div class="track" style="max-width:320px"><i id="wkbar"></i></div>${trackerHtml(n,w)}</section>`;
-  o+=`<section class="sec"><div class="sechead"><h2>Zondag · terugblik</h2></div><p class="q">${h(w.tq)}</p>${text(sc+'|tq','Mijn antwoord',2)}${m?m.refl.map((q,i)=>text(`${sc}|r${i}`,q,2)).join(''):''}
+  o+=`<section class="sec"><div class="sechead"><h2>Doe · oefening in de ruimte</h2></div>${m?`<p>${h(m.oef)}</p>`:''}${oef.map(f=>fiche(sc,f)).join('')}</section>`;
+  o+=`<section class="sec"><div class="sechead"><h2>Doe · de weekopdracht</h2>${full?'':'<span class="pill">Light · optioneel</span>'}</div><details ${full?'open':''}><summary>${full?'Weekopdracht en fiche':'Toon de weekopdracht'}</summary><div class="sec" style="margin-top:10px">${m?`<p>${h(m.opdr)}</p>`:''}${opdr.map(f=>fiche(sc,f)).join('')}</div></details></section>`;
+  o+=`<section class="sec"><div class="sechead"><h2>Gewoonte · elke dag</h2><span class="mono" id="wkcount"></span></div><p class="q">${h(w.gew)}</p><div class="track" style="max-width:320px"><i id="wkbar"></i></div>${trackerHtml(n,w)}</section>`;
+  o+=`<section class="sec"><div class="sechead"><h2>Reflecteer · zondag</h2></div><p class="q">${h(w.tq)}</p>${text(sc+'|tq','Mijn antwoord',2)}${m?m.refl.map((q,i)=>text(`${sc}|r${i}`,q,2)).join(''):''}
    <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" data-k="${sc}|done" ${get(sc+'|done')?'checked':''}><span class="box">✓</span></span><span><b>Scorebord ingevuld · week afgerond</b></span></label></section>`;
   if(EVALS[n]) o+=evalHtml(n);
   return o+pager+`</article>`}
 
 function vBonus(){return `<article class="sec" style="gap:40px"><header class="wkhead"><div class="row"><span class="pill on">Business</span><span class="pill">Wanneer nodig</span></div><h1>Het brand partner-gesprek.</h1></header>
   <section class="sec"><div class="row">${fileBtn('deck-bonus','Open de presentatie','btn')}</div></section>
-  <section class="sec"><div class="sechead"><h2>Oefening in de ruimte</h2></div><p>${h(BONUS.oef)}</p>${fiche('bonus',BONUS.fi[0])}</section>
+  <section class="sec"><div class="sechead"><h2>Doe · oefening in de ruimte</h2></div><p>${h(BONUS.oef)}</p>${fiche('bonus',BONUS.fi[0])}</section>
   <section class="sec"><div class="sechead"><h2>Opdracht</h2></div><p>${h(BONUS.opdr)}</p>${fiche('bonus',BONUS.fi[1])}</section></article>`}
 
 function doelInhoud(){
@@ -552,13 +580,14 @@ function accountHtml(){
 const SKEL='<div class="skel" aria-label="Laden"><i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i></div>';
 let LASTKEY='';
 function enter(key){const m=mainEl(); if(key===LASTKEY) return; LASTKEY=key; m.classList.remove('enter'); void m.offsetWidth; m.classList.add('enter'); setTimeout(()=>m.classList.remove('enter'),900)}
-const NAV=[['start','Vandaag'],['reis','Reis'],['live','Live'],['mijn-90','Mijn 90'],['voortgang','Voortgang'],['materiaal','Materiaal']];
+const NAV=[['start','Vandaag'],['reis','Reis'],['live','Live'],['meer','Meer']];
 const ICONS={start:'<path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4v-5H9v5H5a1 1 0 0 1-1-1z"/>',
  reis:'<path d="M5 20V4M5 5h11l-2 3.5L16 12H5"/>',
  live:'<circle cx="12" cy="12" r="2.2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/>',
  'mijn-90':'<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11"/>',
  voortgang:'<path d="M5 20V10M12 20V4M19 20v-7"/>',
  materiaal:'<path d="M4 7a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/>',
+ meer:'<circle cx="5.5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/>',
  beheer:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.8M17.5 14.5a5 5 0 0 1 3 4.5"/>'};
 const navItem=(href,id,l,active)=>`<a href="${href}" ${id===active?'aria-current="page"':''}><svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[id]||''}</svg><span>${l}</span></a>`;
 const mainEl=()=>document.getElementById('app');
@@ -578,7 +607,9 @@ function viewFor(raw){
   else if(r==='voortgang') v=vVoortgang();
   else if(r==='materiaal') v=vMateriaal();
   else if(r==='live') v=vLive();
+  else if(r==='meer') v=vMeer();
   else {r='start';v=vStart()}
+  if(['mijn-90','voortgang','materiaal'].includes(r)) v='<a class="btn ghost sm" href="#meer" style="align-self:flex-start;margin-bottom:16px">← Meer</a>'+v;
   return {r,v,anchor};
 }
 function draw(raw,prefix){
@@ -591,7 +622,7 @@ function draw(raw,prefix){
   enter(prefix+raw);
   mainEl().innerHTML=html;
   if(prefix) mainEl().querySelectorAll('input,textarea,select,button[data-day]').forEach(e=>{e.disabled=true});
-  setNav(r.startsWith('week')||r==='bonus'?'reis':r);
+  setNav(r.startsWith('week')||r==='bonus'?'reis':['mijn-90','voortgang','materiaal'].includes(r)?'meer':r);
   paint(); showWelcome();
   if(anchor){const e=document.getElementById(anchor); if(e) e.scrollIntoView(); else window.scrollTo(0,0)} else window.scrollTo(0,0);
 }
@@ -781,6 +812,8 @@ document.addEventListener('click',async e=>{
     return;
   }
   if(e.target.closest('[data-welkom]')) return closeWelcome();
+  const ob=e.target.closest('[data-onb]');
+  if(ob&&!VIEW){const go=+ob.dataset.onb; if(go===2&&!get('me|regels')){const er=document.getElementById('onberr'); if(er) er.textContent='Vink eerst aan dat je de afspraken hebt gelezen.'; return} ONB=go; return route()}
   const st=e.target.closest('[data-start]'); if(st&&!VIEW) return startRun(st);
   const sa=e.target.closest('[data-sess]'); if(sa) return sessAction(sa);
   const a=e.target.closest('[data-act]'); if(a) return adminAction(a);

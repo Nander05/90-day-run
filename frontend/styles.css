@@ -332,3 +332,5 @@ textarea:focus,input:focus,select:focus{outline:none;border-color:var(--accent);
 body.modal-open{overflow:hidden}
 .recrow{gap:10px}
 .recplayer{border:0;width:min(100%,calc(75vh * 9 / 16));aspect-ratio:9/16;max-height:75vh;display:block;margin:6px auto 0;background:#000}
+.onbar{height:4px;background:var(--line);border-radius:2px}.onbar i{display:block;height:4px;background:var(--accent);border-radius:2px}
+.onb{gap:22px}
