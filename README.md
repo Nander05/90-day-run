@@ -17,6 +17,11 @@ De digitale cursus Sales Foundations 90: 13 weken met trainingen, opdrachten, da
 - **Live trainingen en opnames** zet je onder **Live** (alleen de beheerder ziet het formulier): titel, datum en tijd, bij welke week het hoort, de link om mee te doen en later de link naar de opname (Zoom, Meet, YouTube, Vimeo, enz.). Deelnemers zien de eerstvolgende training op Vandaag, de training en opname bij de week, en alles samen onder Live. Er worden geen video's in de app geüpload, alleen links.
 - Let op: het aanvinken van *gelezen* en *training gevolgd* doen deelnemers zelf. De inhoud zit in de app zelf, dus dit is een route en geen harde beveiliging.
 
+## Bestanden en opnames
+
+- **PDF's (cursusboek, werkboek, presentaties):** exporteer in Canva als PDF en upload ze onder **Beheer, Bestanden (PDF)**. Ze worden in de database bewaard (niet in git, de repo is openbaar) en zijn alleen na inloggen te openen. Nieuwe uploads staan eerst verborgen; zet ze zichtbaar als je ze wilt delen.
+- **Opnames (Cloudflare Stream):** upload de video's in Stream met bestandsnamen als `T2-03-eerst-rust-dan-techniek.mp4`. Maak een API-token met alleen Stream-rechten en zet in Render `CF_ACCOUNT_ID`, `CF_STREAM_TOKEN` en `CF_STREAM_SUBDOMAIN` (de `customer-xxxx.cloudflarestream.com` uit het Stream-dashboard). Klik daarna onder Beheer op *Haal video's op uit Cloudflare*: hoofdstukken komen verborgen binnen en de video's worden op "alleen met getekende link" gezet. Deelnemers krijgen bij het afspelen een tijdelijke link; alleen zichtbare hoofdstukken zijn te openen.
+
 ## Online zetten (ongeveer 15 minuten)
 
 ### 1. Database: MongoDB Atlas (gratis)

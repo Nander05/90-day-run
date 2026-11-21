@@ -7,12 +7,13 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config
 from .db import get_db, utcnow
-from .routers import admin, auth, progress, sessions
+from .routers import admin, auth, files, progress, recordings, sessions
 from .security import hash_password
 
 CSP = (
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
     "font-src 'self'; img-src 'self' data:; connect-src 'self'; "
+    "frame-src https://*.cloudflarestream.com; "
     "frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
 )
 
@@ -80,6 +81,10 @@ app.include_router(progress.router)
 app.include_router(admin.router)
 app.include_router(sessions.router)
 app.include_router(sessions.admin)
+app.include_router(files.router)
+app.include_router(files.admin)
+app.include_router(recordings.router)
+app.include_router(recordings.admin)
 
 if os.path.isdir(config.FRONTEND_DIR):
     app.mount("/", StaticFiles(directory=config.FRONTEND_DIR, html=True), name="frontend")

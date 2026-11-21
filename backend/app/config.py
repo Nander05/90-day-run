@@ -32,3 +32,8 @@ FRONTEND_DIR = os.getenv(
     "FRONTEND_DIR",
     os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "frontend"),
 )
+
+# Cloudflare Stream (opnames). Alle drie leeg = opnames nog niet gekoppeld.
+CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "").strip()
+CF_STREAM_TOKEN = os.getenv("CF_STREAM_TOKEN", "").strip()  # API-token met alleen Stream-rechten
+CF_STREAM_SUBDOMAIN = os.getenv("CF_STREAM_SUBDOMAIN", "").strip()  # bijvoorbeeld customer-abc123.cloudflarestream.com

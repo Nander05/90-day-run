@@ -172,10 +172,6 @@ const C = /*COURSE*/null;
 const MON = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 const DOW = ['ma','di','wo','do','vr','za','zo'];
 const WD = ['zo','ma','di','wo','do','vr','za']; // JS getDay()
-const CANVA = {
-  boek:'https://www.canva.com/d/FLQwrdqrsrgChG6', werkboek:'https://www.canva.com/d/yQkxHvn4feoyMD6',
-  deck:{1:'https://www.canva.com/d/_iyDooGlxYkcD5f',2:'https://www.canva.com/d/IpcLvhq28_Y5oKW',3:'https://www.canva.com/d/lIph8V1t7B7ie5l',4:'https://www.canva.com/d/rcNuvHcXL_ZbZ8w',5:'https://www.canva.com/d/Z5D1vu1jyCGZMCi',6:'https://www.canva.com/d/rEsAZMr2e1NkE-P',7:'https://www.canva.com/d/0lk0AN28vm7jn8D',8:'https://www.canva.com/d/YTxr3OkqIhTOhZ8',9:'https://www.canva.com/d/ZVKxbsl85hvu4Tz',10:'https://www.canva.com/d/q9miVfWupH0tpxl',11:'https://www.canva.com/d/UoIljVZDmTzvrHH',12:'https://www.canva.com/d/40iRUnFrc5jwGT3',bonus:'https://www.canva.com/d/jfp7FP_lNjS_xko'}
-};
 const W = (n,mod,ph,title,sub,gew,tt,tq)=>({n,mod,ph,title,sub,gew,tt,tq});
 const WEEKS = [
  W(1,1,'Fundament','Verkopen is verantwoordelijkheid','Helpen, waarheid en keuzevrijheid. Zwijgen is ook een keuze.','Elke dag één echt gesprek starten.','Elke dag één echt gesprek.','In hoeveel gesprekken klopte je eerste inschatting?'),
@@ -450,11 +446,10 @@ function vWeek(n){
     <section class="sec"><div class="f"><span class="lb">Wat haal ik in?</span><div class="scale">${[1,2,3,4,5,6,7].map(x=>`<label class="opt"><input type="checkbox" data-k="w8|in${x}" ${get('w8|in'+x)?'checked':''}><span>W${x}</span></label>`).join('')}</div></div>${text('w8|a','Wat wil ik inhalen?')}${text('w8|b','Hoe laad ik op?')}${text('w8|c','Mijn intentie voor de tweede helft')}
     <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" data-k="w8|done" ${get('w8|done')?'checked':''}><span class="box">✓</span></span><b>Inhaalweek afgerond</b></label></section>${pager}</article>`}
   const fi=FI[n]||[], oef=fi.filter(f=>f.p==='oef'), opdr=fi.filter(f=>f.p==='opdr');
-  const slides=CANVA.deck[w.mod];
   let o=`<article class="sec" style="gap:40px">`;
   o+=`<header class="wkhead"><div class="kick">Sales Foundations 90 · Week ${String(n).padStart(2,'0')} / 13 · ${h(w.ph)}</div><h1>${h(w.title)}.</h1><p style="font-size:1.15rem;margin:0">${h(w.sub)}</p><div class="row"><span class="pill">Week ${n}${weekRange(n)?' · '+weekRange(n):''}</span><span class="pill">Training ${String(w.mod).padStart(2,'0')}</span></div></header>`;
   o+=`<section class="sec"><div class="sechead"><h2>De training</h2><span class="mono">Live</span></div>${m?`<p style="font-size:1.12rem"><b>${h(m.thesis)}</b></p>`:''}
-   <div class="row"><a class="btn" href="${slides}" target="_blank" rel="noopener">Open de presentatie</a><a class="btn ghost" href="${CANVA.boek}" target="_blank" rel="noopener">Cursusboek · hoofdstuk ${w.mod}</a></div>
+   <div class="row">${fileBtn('deck-'+w.mod,'Open de presentatie','btn')}${fileBtn('cursusboek','Cursusboek · hoofdstuk '+w.mod,'btn ghost')}</div>${recBlock(w.mod)}
    ${m?`<div class="cols2"><div><div class="mono" style="margin-bottom:8px">Na deze training kun je</div><ul class="list">${m.goals.map(g=>`<li>${h(g.replace(/;$|\.$/,''))}</li>`).join('')}</ul></div><div><div class="mono" style="margin-bottom:8px">Kernpunten</div><ul class="list">${m.kern.map(g=>`<li>${h(g)}</li>`).join('')}</ul></div></div>
    ${m.beeld?`<div class="card"><div class="mono">Het beeld van deze week</div><p style="margin:4px 0 0;font-size:1.15rem"><b>${h(sentence(m.beeld))}</b></p></div>`:''}`:''}
    ${sessionBlock(n)}
@@ -471,7 +466,7 @@ function vWeek(n){
   return o+pager+`</article>`}
 
 function vBonus(){return `<article class="sec" style="gap:40px"><header class="wkhead"><div class="row"><span class="pill on">Business</span><span class="pill">Wanneer nodig</span></div><h1>Het brand partner-gesprek.</h1></header>
-  <section class="sec"><div class="row"><a class="btn" href="${CANVA.deck.bonus}" target="_blank" rel="noopener">Open de presentatie</a></div></section>
+  <section class="sec"><div class="row">${fileBtn('deck-bonus','Open de presentatie','btn')}</div></section>
   <section class="sec"><div class="sechead"><h2>Oefening in de ruimte</h2></div><p>${h(BONUS.oef)}</p>${fiche('bonus',BONUS.fi[0])}</section>
   <section class="sec"><div class="sechead"><h2>Opdracht</h2></div><p>${h(BONUS.opdr)}</p>${fiche('bonus',BONUS.fi[1])}</section></article>`}
 
@@ -518,8 +513,8 @@ function vVoortgang(){
 
 function vMateriaal(){
   return `<div class="sec" style="gap:32px"><div><div class="kick">Alles bij elkaar</div><h1>Materiaal</h1></div>
-  <section class="sec"><div class="sechead"><h2>Boeken</h2></div><div class="mat"><a href="${CANVA.boek}" target="_blank" rel="noopener">Cursusboek · de theorie</a><a href="${CANVA.werkboek}" target="_blank" rel="noopener">Werkboek · papieren versie</a></div></section>
-  <section class="sec"><div class="sechead"><h2>Presentaties</h2></div><div class="mat">${WEEKS.filter(w=>w.mod).map(w=>isOpen(w.n)?`<a href="${CANVA.deck[w.mod]}" target="_blank" rel="noopener">${String(w.mod).padStart(2,'0')} · ${h(w.title)}</a>`:`<span class="lockedmat">${String(w.mod).padStart(2,'0')} · ${h(w.title)}${LOCK}</span>`).join('')}<a href="${CANVA.deck.bonus}" target="_blank" rel="noopener">Bonus · het brand partner-gesprek</a></div></section>
+  <section class="sec"><div class="sechead"><h2>Boeken</h2></div><div class="mat">${matLink('cursusboek','Cursusboek · de theorie')}${matLink('werkboek','Werkboek · papieren versie')}</div></section>
+  <section class="sec"><div class="sechead"><h2>Presentaties</h2></div><div class="mat">${WEEKS.filter(w=>w.mod).map(w=>isOpen(w.n)?matLink('deck-'+w.mod,String(w.mod).padStart(2,'0')+' · '+w.title):`<span class="lockedmat">${String(w.mod).padStart(2,'0')} · ${h(w.title)}${LOCK}</span>`).join('')}${matLink('deck-bonus','Bonus · het brand partner-gesprek')}</div></section>
   <section class="sec"><div class="sechead"><h2>Het ritme</h2></div><div class="rules">${[['Maandag','Weekfocus in de groep. Lees je opdracht.'],['Woensdag','Check-in: waar loop je vast?'],['Vrijdag','Deel je wins. Ook kleine.'],['Zondag','Vul je scorebord in.']].map(([d,t])=>`<div><b>${d}</b> · ${t}</div>`).join('')}</div>
    <p class="muted">Elke week heeft drie onderdelen: de training, de weekopdracht en de gewoonte, één kleine actie per dag.</p></section>
   <section class="sec"><div class="sechead"><h2>Drie spelregels</h2></div><div class="rules">

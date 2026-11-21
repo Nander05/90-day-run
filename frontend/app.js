@@ -3,10 +3,6 @@ const C = window.COURSE;
 const MON = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 const DOW = ['ma','di','wo','do','vr','za','zo'];
 const WD = ['zo','ma','di','wo','do','vr','za']; // JS getDay()
-const CANVA = {
-  boek:'https://www.canva.com/d/FLQwrdqrsrgChG6', werkboek:'https://www.canva.com/d/yQkxHvn4feoyMD6',
-  deck:{1:'https://www.canva.com/d/_iyDooGlxYkcD5f',2:'https://www.canva.com/d/IpcLvhq28_Y5oKW',3:'https://www.canva.com/d/lIph8V1t7B7ie5l',4:'https://www.canva.com/d/rcNuvHcXL_ZbZ8w',5:'https://www.canva.com/d/Z5D1vu1jyCGZMCi',6:'https://www.canva.com/d/rEsAZMr2e1NkE-P',7:'https://www.canva.com/d/0lk0AN28vm7jn8D',8:'https://www.canva.com/d/YTxr3OkqIhTOhZ8',9:'https://www.canva.com/d/ZVKxbsl85hvu4Tz',10:'https://www.canva.com/d/q9miVfWupH0tpxl',11:'https://www.canva.com/d/UoIljVZDmTzvrHH',12:'https://www.canva.com/d/40iRUnFrc5jwGT3',bonus:'https://www.canva.com/d/jfp7FP_lNjS_xko'}
-};
 const W = (n,mod,ph,title,sub,gew,tt,tq)=>({n,mod,ph,title,sub,gew,tt,tq});
 const WEEKS = [
  W(1,1,'Fundament','Verkopen is verantwoordelijkheid','Helpen, waarheid en keuzevrijheid. Zwijgen is ook een keuze.','Elke dag één echt gesprek starten.','Elke dag één echt gesprek.','In hoeveel gesprekken klopte je eerste inschatting?'),
@@ -119,7 +115,7 @@ const BONUS = {
 };
 
 /* ---- server en opslag ---- */
-let ME=null, OWN={}, VIEW=null, ACCESS={unlock_to:null}, SESS=[]; // ME: ingelogde gebruiker, OWN: eigen boek, VIEW: boek van een deelnemer (beheerder, alleen lezen)
+let ME=null, OWN={}, VIEW=null, ACCESS={unlock_to:null}, SESS=[], FILES=[], FSLOTS=[], RECS=[], LINKED=false; // ME: ingelogde gebruiker, OWN: eigen boek, VIEW: boek van een deelnemer (beheerder, alleen lezen)
 const get=k=>(VIEW?VIEW.d:OWN)[k];
 async function api(method,path,body,keepalive){
   const r=await fetch('/api'+path,{method,credentials:'same-origin',keepalive:!!keepalive,
@@ -311,11 +307,10 @@ function vWeek(n){
     <section class="sec"><div class="f"><span class="lb">Wat haal ik in?</span><div class="scale">${[1,2,3,4,5,6,7].map(x=>`<label class="opt"><input type="checkbox" data-k="w8|in${x}" ${get('w8|in'+x)?'checked':''}><span>W${x}</span></label>`).join('')}</div></div>${text('w8|a','Wat wil ik inhalen?')}${text('w8|b','Hoe laad ik op?')}${text('w8|c','Mijn intentie voor de tweede helft')}
     <label class="today" style="cursor:pointer"><span class="chk"><input type="checkbox" data-k="w8|done" ${get('w8|done')?'checked':''}><span class="box">✓</span></span><b>Inhaalweek afgerond</b></label></section>${pager}</article>`}
   const fi=FI[n]||[], oef=fi.filter(f=>f.p==='oef'), opdr=fi.filter(f=>f.p==='opdr');
-  const slides=CANVA.deck[w.mod];
   let o=`<article class="sec" style="gap:40px">`;
   o+=`<header class="wkhead"><div class="kick">Sales Foundations 90 · Week ${String(n).padStart(2,'0')} / 13 · ${h(w.ph)}</div><h1>${h(w.title)}.</h1><p style="font-size:1.15rem;margin:0">${h(w.sub)}</p><div class="row"><span class="pill">Week ${n}${weekRange(n)?' · '+weekRange(n):''}</span><span class="pill">Training ${String(w.mod).padStart(2,'0')}</span></div></header>`;
   o+=`<section class="sec"><div class="sechead"><h2>De training</h2><span class="mono">Live</span></div>${m?`<p style="font-size:1.12rem"><b>${h(m.thesis)}</b></p>`:''}
-   <div class="row"><a class="btn" href="${slides}" target="_blank" rel="noopener">Open de presentatie</a><a class="btn ghost" href="${CANVA.boek}" target="_blank" rel="noopener">Cursusboek · hoofdstuk ${w.mod}</a></div>
+   <div class="row">${fileBtn('deck-'+w.mod,'Open de presentatie','btn')}${fileBtn('cursusboek','Cursusboek · hoofdstuk '+w.mod,'btn ghost')}</div>${recBlock(w.mod)}
    ${m?`<div class="cols2"><div><div class="mono" style="margin-bottom:8px">Na deze training kun je</div><ul class="list">${m.goals.map(g=>`<li>${h(g.replace(/;$|\.$/,''))}</li>`).join('')}</ul></div><div><div class="mono" style="margin-bottom:8px">Kernpunten</div><ul class="list">${m.kern.map(g=>`<li>${h(g)}</li>`).join('')}</ul></div></div>
    ${m.beeld?`<div class="card"><div class="mono">Het beeld van deze week</div><p style="margin:4px 0 0;font-size:1.15rem"><b>${h(sentence(m.beeld))}</b></p></div>`:''}`:''}
    ${sessionBlock(n)}
@@ -332,7 +327,7 @@ function vWeek(n){
   return o+pager+`</article>`}
 
 function vBonus(){return `<article class="sec" style="gap:40px"><header class="wkhead"><div class="row"><span class="pill on">Business</span><span class="pill">Wanneer nodig</span></div><h1>Het brand partner-gesprek.</h1></header>
-  <section class="sec"><div class="row"><a class="btn" href="${CANVA.deck.bonus}" target="_blank" rel="noopener">Open de presentatie</a></div></section>
+  <section class="sec"><div class="row">${fileBtn('deck-bonus','Open de presentatie','btn')}</div></section>
   <section class="sec"><div class="sechead"><h2>Oefening in de ruimte</h2></div><p>${h(BONUS.oef)}</p>${fiche('bonus',BONUS.fi[0])}</section>
   <section class="sec"><div class="sechead"><h2>Opdracht</h2></div><p>${h(BONUS.opdr)}</p>${fiche('bonus',BONUS.fi[1])}</section></article>`}
 
@@ -377,8 +372,8 @@ function vVoortgang(){
 
 function vMateriaal(){
   return `<div class="sec" style="gap:32px"><div><div class="kick">Alles bij elkaar</div><h1>Materiaal</h1></div>
-  <section class="sec"><div class="sechead"><h2>Boeken</h2></div><div class="mat"><a href="${CANVA.boek}" target="_blank" rel="noopener">Cursusboek · de theorie</a><a href="${CANVA.werkboek}" target="_blank" rel="noopener">Werkboek · papieren versie</a></div></section>
-  <section class="sec"><div class="sechead"><h2>Presentaties</h2></div><div class="mat">${WEEKS.filter(w=>w.mod).map(w=>isOpen(w.n)?`<a href="${CANVA.deck[w.mod]}" target="_blank" rel="noopener">${String(w.mod).padStart(2,'0')} · ${h(w.title)}</a>`:`<span class="lockedmat">${String(w.mod).padStart(2,'0')} · ${h(w.title)}${LOCK}</span>`).join('')}<a href="${CANVA.deck.bonus}" target="_blank" rel="noopener">Bonus · het brand partner-gesprek</a></div></section>
+  <section class="sec"><div class="sechead"><h2>Boeken</h2></div><div class="mat">${matLink('cursusboek','Cursusboek · de theorie')}${matLink('werkboek','Werkboek · papieren versie')}</div></section>
+  <section class="sec"><div class="sechead"><h2>Presentaties</h2></div><div class="mat">${WEEKS.filter(w=>w.mod).map(w=>isOpen(w.n)?matLink('deck-'+w.mod,String(w.mod).padStart(2,'0')+' · '+w.title):`<span class="lockedmat">${String(w.mod).padStart(2,'0')} · ${h(w.title)}${LOCK}</span>`).join('')}${matLink('deck-bonus','Bonus · het brand partner-gesprek')}</div></section>
   <section class="sec"><div class="sechead"><h2>Het ritme</h2></div><div class="rules">${[['Maandag','Weekfocus in de groep. Lees je opdracht.'],['Woensdag','Check-in: waar loop je vast?'],['Vrijdag','Deel je wins. Ook kleine.'],['Zondag','Vul je scorebord in.']].map(([d,t])=>`<div><b>${d}</b> · ${t}</div>`).join('')}</div>
    <p class="muted">Elke week heeft drie onderdelen: de training, de weekopdracht en de gewoonte, één kleine actie per dag.</p></section>
   <section class="sec"><div class="sechead"><h2>Drie spelregels</h2></div><div class="rules">
@@ -430,6 +425,7 @@ function vLive(){
   <p class="muted" style="margin:8px 0 0">Hier staan de live trainingen en de opnames. Heb je er een gemist? Kijk de opname en vink daarna in de week aan dat je de training hebt gevolgd.</p></div>
   ${admin?sessForm():''}
   <section class="sec"><div class="sechead"><h2>Eerstvolgende</h2></div>${up.map(x=>sessCard(x,admin)).join('')||'<p class="muted">Er staat nog geen training gepland.</p>'}</section>
+  ${recSection()}
   <section class="sec"><div class="sechead"><h2>Opnames</h2></div>${past.map(x=>sessCard(x,admin)).join('')||'<p class="muted">Nog geen afgelopen trainingen.</p>'}</section></div>`}
 
 async function saveSession(f){
@@ -451,6 +447,92 @@ async function sessAction(b){
     if(b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='Zeker weten?';return}
     try{await api('DELETE','/admin/sessions/'+id); EDITING=null; await loadSessions(); route()}catch(e){b.textContent=e.message}
   }
+}
+
+/* ---- privé-bestanden (PDF) en opnames (Cloudflare Stream) ---- */
+const FILE=k=>FILES.find(f=>f.key===k);
+async function loadMedia(){
+  try{const r=await api('GET','/files'); FILES=r.files||[]; FSLOTS=r.slots||[]}catch(e){}
+  try{const r=await api('GET','/recordings'); RECS=r.recordings||[]; LINKED=!!r.linked}catch(e){}
+}
+function fileBtn(k,label,cls){
+  return FILE(k)?`<a class="${cls}" href="/api/files/${k}" target="_blank" rel="noopener">${h(label)}</a>`:`<span class="muted">${h(label)} · volgt</span>`}
+function matLink(k,label){
+  return FILE(k)?`<a href="/api/files/${k}" target="_blank" rel="noopener">${h(label)}</a>`:`<span class="lockedmat">${h(label)}<span class="small">volgt</span></span>`}
+
+/* opnames per hoofdstuk */
+function recBlock(training){
+  const rs=RECS.filter(r=>r.training===training&&(r.visible||(ME&&ME.role==='admin')));
+  if(!rs.length) return '';
+  return `<div class="sec" style="gap:8px"><div class="mono">Opname per hoofdstuk</div>${rs.map(recRow).join('')}</div>`}
+function recRow(r){
+  return `<div class="card recrow" data-recid="${r.id}"><div class="row" style="justify-content:space-between;gap:10px"><span><span class="mono">${pad2(r.order)}</span> · <b>${h(r.title)}</b>${r.visible?'':' <span class="pill">Verborgen</span>'}</span><button class="btn ghost sm" type="button" data-play="${r.id}">Bekijk</button></div></div>`}
+function recSection(){
+  const ts=[...new Set(RECS.map(r=>r.training))].sort((a,b)=>a-b);
+  const admin=ME&&ME.role==='admin'&&!VIEW;
+  const rows=ts.map(t=>{const w=WEEKS.find(x=>x.mod===t); const rs=RECS.filter(r=>r.training===t&&(r.visible||admin)); if(!rs.length) return '';
+    return `<div class="sec" style="gap:8px"><div class="mono">Training ${pad2(t)}${w?' · '+h(w.title):''}</div>${rs.map(recRow).join('')}</div>`}).join('');
+  return rows?`<section class="sec"><div class="sechead"><h2>Opnames per hoofdstuk</h2></div>${rows}</section>`:''}
+async function playRec(btn){
+  const box=btn.closest('[data-recid]'); const old=box.querySelector('iframe');
+  if(old){old.remove(); btn.textContent='Bekijk'; return}
+  btn.disabled=true; btn.textContent='Laden…';
+  try{
+    const r=await api('GET','/recordings/'+btn.dataset.play+'/play');
+    const f=document.createElement('iframe'); f.src=r.url; f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen'; f.allowFullscreen=true; f.title='Opname'; f.className='recplayer';
+    box.appendChild(f); btn.textContent='Sluiten';
+  }catch(e){btn.textContent='Bekijk'; box.insertAdjacentHTML('beforeend',`<p class="err" role="alert">${h(e.message)}</p>`)}
+  btn.disabled=false;
+}
+
+/* beheer: bestanden en opnames */
+function mediaAdminHtml(){
+  const files=FSLOTS.map(s=>{const f=FILE(s.key)||(FILES.find(x=>x.key===s.key));
+    const st=f?`${(f.size/1048576).toFixed(1)} MB · ${f.visible?'zichtbaar':'verborgen'}`:'nog niet geüpload';
+    return `<div class="card"><div class="row" style="justify-content:space-between;gap:10px"><b>${h(s.label)}</b><span class="muted small">${st}</span></div>
+    <div class="row"><label class="btn ghost sm" style="cursor:pointer">${f?'Vervang PDF':'Upload PDF'}<input type="file" accept="application/pdf" data-fup="${s.key}" hidden></label>${f?`<button class="btn ghost sm" type="button" data-fvis="${s.key}" data-on="${f.visible?1:0}">${f.visible?'Verbergen':'Zichtbaar maken'}</button><button class="btn ghost sm" type="button" data-fdel="${s.key}">Verwijderen</button>`:''}</div></div>`}).join('');
+  const recs=RECS.map(r=>`<div class="card"><div class="row" style="gap:10px"><span class="mono">T${r.training}·${pad2(r.order)}</span><input type="text" value="${h(r.title)}" data-rectitle="${r.id}" aria-label="Titel" style="flex:1;min-width:180px"><span class="pill ${r.visible?'on':''}">${r.visible?'Zichtbaar':'Verborgen'}</span></div>
+    <div class="row"><button class="btn ghost sm" type="button" data-recvis="${r.id}" data-on="${r.visible?1:0}">${r.visible?'Verbergen':'Zichtbaar maken'}</button><button class="btn ghost sm" type="button" data-recdel="${r.id}">Verwijderen</button></div></div>`).join('');
+  return `<section class="sec"><div class="sechead"><h2>Bestanden (PDF)</h2></div><p class="muted">Exporteer in Canva als PDF en upload hier. Nieuwe bestanden staan eerst verborgen. Alleen ingelogde deelnemers kunnen ze openen.</p><div id="ferr" class="err" role="alert"></div>${files}</section>
+  <section class="sec"><div class="sechead"><h2>Opnames (Cloudflare)</h2></div>
+  ${LINKED?'':'<p class="err">Cloudflare is nog niet gekoppeld. Zet CF_ACCOUNT_ID, CF_STREAM_TOKEN en CF_STREAM_SUBDOMAIN in Render.</p>'}
+  <p class="muted">Upload de video\'s in Cloudflare Stream met hun bestandsnaam (bijvoorbeeld T2-03-eerst-rust-dan-techniek.mp4) en klik hieronder. Ze komen verborgen binnen, met "alleen met getekende link" aan.</p>
+  <div class="row"><button class="btn sm" type="button" data-recimport="1">Haal video's op uit Cloudflare</button></div><div id="rerr" class="err" role="alert"></div>${recs||'<p class="muted">Nog geen hoofdstukken.</p>'}</section>`}
+
+async function mediaClick(e){
+  const t=e.target, c=s=>t.closest(s);
+  let b;
+  if(b=c('[data-play]')){playRec(b);return true}
+  if(b=c('[data-fvis]')){try{await api('PATCH','/admin/files/'+b.dataset.fvis,{visible:b.dataset.on!=='1'}); route()}catch(x){document.getElementById('ferr').textContent=x.message} return true}
+  if(b=c('[data-fdel]')){
+    if(b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='Zeker weten?';return true}
+    try{await api('DELETE','/admin/files/'+b.dataset.fdel); route()}catch(x){document.getElementById('ferr').textContent=x.message} return true}
+  if(b=c('[data-recvis]')){try{await api('PATCH','/admin/recordings/'+b.dataset.recvis,{visible:b.dataset.on!=='1'}); route()}catch(x){document.getElementById('rerr').textContent=x.message} return true}
+  if(b=c('[data-recdel]')){
+    if(b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='Zeker weten?';return true}
+    try{await api('DELETE','/admin/recordings/'+b.dataset.recdel); route()}catch(x){document.getElementById('rerr').textContent=x.message} return true}
+  if(b=c('[data-recimport]')){
+    b.disabled=true; const o=document.getElementById('rerr');
+    try{const r=await api('POST','/admin/recordings/import'); await route(); const o2=document.getElementById('rerr'); if(o2){o2.style.color='var(--ok)'; o2.textContent=r.added+' nieuw, '+r.skipped+' overgeslagen'+(r.unsigned?' · '+r.unsigned+' kon niet op "getekende link" gezet worden':'')}}
+    catch(x){o.textContent=x.message; b.disabled=false}
+    return true}
+  return false;
+}
+async function mediaChange(e){
+  const t=e.target;
+  if(t.matches&&t.matches('[data-fup]')&&t.files[0]){
+    const f=t.files[0], err=document.getElementById('ferr'); err.style.color=''; err.textContent='Uploaden…';
+    try{
+      const r=await fetch('/api/admin/files/'+t.dataset.fup,{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/pdf','X-Requested-With':'run90'},body:f});
+      if(!r.ok){let d=null;try{d=(await r.json()).detail}catch(x){} throw new Error(typeof d==='string'?d:'Uploaden mislukt.')}
+      route();
+    }catch(x){err.textContent=x.message}
+    return true}
+  if(t.matches&&t.matches('[data-rectitle]')){
+    const v=t.value.trim(); if(!v) return true;
+    try{await api('PATCH','/admin/recordings/'+t.dataset.rectitle,{title:v}); status('Opgeslagen')}catch(x){t.title=x.message}
+    return true}
+  return false;
 }
 
 /* ---- account ---- */
@@ -534,6 +616,7 @@ async function route(){
     return draw(vm[2]||'start','deelnemer-'+vm[1]+'-');
   }
   VIEW=null;
+  if(/^(live|materiaal|bonus|week-\d+)/.test(raw)) await loadMedia();
   if(raw==='live') await loadSessions();
   else if(ME.role==='member'){ // toegang kan door de beheerder zijn aangepast
     const wm=raw.match(/^week-(\d+)/);
@@ -543,6 +626,7 @@ async function route(){
   if(raw==='beheer'){
     if(ME.role!=='admin'){location.hash='#start';return}
     mainEl().innerHTML=SKEL;
+    await loadMedia();
     let html; try{html=await vBeheer()}catch(e){html=`<p class="err">${h(e.message)}</p>`}
     if(my!==seq) return;
     enter('beheer'); mainEl().innerHTML=html; setNav('beheer'); paint(); window.scrollTo(0,0); return;
@@ -584,7 +668,7 @@ async function vBeheer(){
    <div class="cols2"><div class="f"><label class="lb" for="ad-name">Naam</label><input id="ad-name" name="name" type="text" autocomplete="off"></div><div class="f"><label class="lb" for="ad-email">E-mail</label><input id="ad-email" name="email" type="email" autocomplete="off"></div></div>
    <p class="err" id="aerr" role="alert"></p><div><button class="btn" type="submit">Uitnodiging maken</button></div></form>
   ${link}
-  <section class="sec"><div class="sechead"><h2>${ps.length} ${ps.length===1?'deelnemer':'deelnemers'}</h2><button class="btn ghost sm" type="button" data-act="refresh">Vernieuwen</button></div>${cards||'<p class="muted">Nog geen deelnemers. Maak hierboven de eerste uitnodiging.</p>'}</section></div>`}
+  <section class="sec"><div class="sechead"><h2>${ps.length} ${ps.length===1?'deelnemer':'deelnemers'}</h2><button class="btn ghost sm" type="button" data-act="refresh">Vernieuwen</button></div>${cards||'<p class="muted">Nog geen deelnemers. Maak hierboven de eerste uitnodiging.</p>'}</section>${mediaAdminHtml()}</div>`}
 async function adminAction(a){
   const act=a.dataset.act,id=a.dataset.id;
   try{
@@ -619,7 +703,7 @@ function showLogin(msg){
   <p class="muted small">Alleen jij en je begeleider kunnen jouw boek zien. Andere deelnemers zien niets van jou.</p></div>`;
 }
 async function refreshAccess(){try{const p=await api('GET','/me/progress'); ACCESS=p.access||ACCESS}catch(e){}}
-async function loadOwn(){const p=await api('GET','/me/progress'); OWN=p.d||{}; ACCESS=p.access||{unlock_to:null}; await loadSessions()}
+async function loadOwn(){const p=await api('GET','/me/progress'); OWN=p.d||{}; ACCESS=p.access||{unlock_to:null}; await loadSessions(); await loadMedia()}
 async function doLogin(f){
   const err=document.getElementById('lerr'),btn=f.querySelector('button'); err.textContent=''; btn.disabled=true;
   try{
@@ -666,7 +750,7 @@ async function doAdd(f){
 async function logout(){
   await flush(true);
   try{await api('POST','/auth/logout')}catch(e){}
-  ME=null;OWN={};VIEW=null;LASTLINK=null;ACCESS={unlock_to:null};SESS=[];EDITING=null;
+  ME=null;OWN={};VIEW=null;LASTLINK=null;ACCESS={unlock_to:null};SESS=[];FILES=[];FSLOTS=[];RECS=[];EDITING=null;
   history.replaceState(null,'','#start'); showLogin();
 }
 
@@ -685,7 +769,8 @@ function closeWelcome(){
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('welkom')) closeWelcome()});
 
 /* ---- invoer ---- */
-document.addEventListener('click',e=>{
+document.addEventListener('click',async e=>{
+  if(await mediaClick(e)) return;
   const d=e.target.closest('[data-day]');
   if(d&&!VIEW){
     const k=d.dataset.day,on=!get(k); put(k,on);
@@ -723,6 +808,7 @@ async function startRun(b){
   catch(e){b.disabled=false; b.textContent=e.message}
 }
 document.addEventListener('change',async e=>{
+  if(await mediaChange(e)) return;
   const u=e.target.closest&&e.target.closest('[data-unlock]'); if(!u) return;
   try{await api('PATCH','/admin/participants/'+u.dataset.unlock,{unlock_to:+u.value}); status('Opgeslagen')}catch(err){u.title=err.message}
 });
