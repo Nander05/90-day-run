@@ -34,6 +34,13 @@ async function playRec(btn){
   btn.disabled=false;
 }
 
+/* herteken Beheer maar blijf op dezelfde plek en laat uitgeklapte blokken open */
+async function keepRoute(){
+  const y=scrollY, open=[...document.querySelectorAll('#app details')].map(d=>d.open);
+  await route();
+  document.querySelectorAll('#app details').forEach((d,i)=>{if(open[i]) d.open=true});
+  scrollTo(0,y);
+}
 /* beheer: bestanden en opnames */
 function mediaAdminHtml(){
   const files=FSLOTS.map(s=>{const f=FILE(s.key)||(FILES.find(x=>x.key===s.key));
@@ -64,20 +71,20 @@ async function mediaClick(e){
       if(!m){fail.push(lines[i].slice(0,30)+': regel niet herkend');continue}
       try{await api('POST','/admin/files/import',{key:m[1],url:m[2]}); ok++}catch(x){fail.push(m[1]+': '+x.message)}
     }
-    await route(); const o2=document.getElementById('ferr');
+    await keepRoute(); const o2=document.getElementById('ferr');
     if(o2){o2.style.color=fail.length?'':'var(--ok)'; o2.textContent=ok+' geïmporteerd'+(fail.length?' · mislukt: '+fail.join(' | '):'')}
     return true}
-  if(b=c('[data-fvis]')){try{await api('PATCH','/admin/files/'+b.dataset.fvis,{visible:b.dataset.on!=='1'}); route()}catch(x){document.getElementById('ferr').textContent=x.message} return true}
+  if(b=c('[data-fvis]')){try{await api('PATCH','/admin/files/'+b.dataset.fvis,{visible:b.dataset.on!=='1'}); keepRoute()}catch(x){document.getElementById('ferr').textContent=x.message} return true}
   if(b=c('[data-fdel]')){
     if(b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='Zeker weten?';return true}
-    try{await api('DELETE','/admin/files/'+b.dataset.fdel); route()}catch(x){document.getElementById('ferr').textContent=x.message} return true}
-  if(b=c('[data-recvis]')){try{await api('PATCH','/admin/recordings/'+b.dataset.recvis,{visible:b.dataset.on!=='1'}); route()}catch(x){document.getElementById('rerr').textContent=x.message} return true}
+    try{await api('DELETE','/admin/files/'+b.dataset.fdel); keepRoute()}catch(x){document.getElementById('ferr').textContent=x.message} return true}
+  if(b=c('[data-recvis]')){try{await api('PATCH','/admin/recordings/'+b.dataset.recvis,{visible:b.dataset.on!=='1'}); keepRoute()}catch(x){document.getElementById('rerr').textContent=x.message} return true}
   if(b=c('[data-recdel]')){
     if(b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='Zeker weten?';return true}
-    try{await api('DELETE','/admin/recordings/'+b.dataset.recdel); route()}catch(x){document.getElementById('rerr').textContent=x.message} return true}
+    try{await api('DELETE','/admin/recordings/'+b.dataset.recdel); keepRoute()}catch(x){document.getElementById('rerr').textContent=x.message} return true}
   if(b=c('[data-recimport]')){
     b.disabled=true; const o=document.getElementById('rerr');
-    try{const r=await api('POST','/admin/recordings/import'); await route(); const o2=document.getElementById('rerr'); if(o2){o2.style.color='var(--ok)'; o2.textContent=r.added+' nieuw, '+r.skipped+' overgeslagen'+(r.unsigned?' · '+r.unsigned+' kon niet op "getekende link" gezet worden':'')}}
+    try{const r=await api('POST','/admin/recordings/import'); await keepRoute(); const o2=document.getElementById('rerr'); if(o2){o2.style.color='var(--ok)'; o2.textContent=r.added+' nieuw, '+r.skipped+' overgeslagen'+(r.unsigned?' · '+r.unsigned+' kon niet op "getekende link" gezet worden':'')}}
     catch(x){o.textContent=x.message; b.disabled=false}
     return true}
   return false;
@@ -89,7 +96,7 @@ async function mediaChange(e){
     try{
       const r=await fetch('/api/admin/files/'+t.dataset.fup,{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/pdf','X-Requested-With':'run90'},body:await f.arrayBuffer()});
       if(!r.ok){let d=null;try{d=(await r.json()).detail}catch(x){} throw new Error(typeof d==='string'?d:'Uploaden mislukt.')}
-      route();
+      keepRoute();
     }catch(x){err.textContent=x.message}
     return true}
   if(t.matches&&t.matches('[data-rectitle]')){
