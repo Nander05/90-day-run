@@ -72,3 +72,21 @@ def test_import_from_cloudflare_hidden_and_signed(fresh, monkeypatch):
     row = admin.get("/api/recordings").json()["recordings"][0]
     assert (row["training"], row["order"], row["title"], row["visible"]) == (2, 3, "Eerst rust dan techniek", False)
     assert admin.post("/api/admin/recordings/import", headers=H).json()["added"] == 0  # geen dubbelen
+
+
+def test_import_pdf_from_link(fresh, monkeypatch):
+    from app.routers import files
+
+    admin = admin_client()
+    anna, _, _ = make_member(admin)
+    body = {"key": "cursusboek", "url": "https://voorbeeld.example/x.pdf"}
+    assert anna.post("/api/admin/files/import", json=body, headers=H).status_code == 403
+    # interne en niet-https adressen worden geweigerd
+    for bad in ("http://voorbeeld.example/x.pdf", "https://127.0.0.1/x.pdf", "https://localhost/x.pdf"):
+        r = admin.post("/api/admin/files/import", json={"key": "cursusboek", "url": bad}, headers=H)
+        assert r.status_code == 422, bad
+    assert admin.post("/api/admin/files/import", json={"key": "nope", "url": body["url"]}, headers=H).status_code == 404
+    monkeypatch.setattr(files, "fetch_pdf", lambda url: PDF)
+    r = admin.post("/api/admin/files/import", json=body, headers=H)
+    assert r.status_code == 200 and r.json()["file"]["visible"] is False
+    assert admin.get("/api/files/cursusboek").content == PDF
