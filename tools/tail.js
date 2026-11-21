@@ -134,7 +134,7 @@ async function vBeheer(){
    <div class="cols2"><div class="f"><label class="lb" for="ad-name">Naam</label><input id="ad-name" name="name" type="text" autocomplete="off"></div><div class="f"><label class="lb" for="ad-email">E-mail</label><input id="ad-email" name="email" type="email" autocomplete="off"></div></div>
    <p class="err" id="aerr" role="alert"></p><div><button class="btn" type="submit">Uitnodiging maken</button></div></form>
   ${link}
-  <section class="sec"><div class="sechead"><h2>${ps.length} ${ps.length===1?'deelnemer':'deelnemers'}</h2><button class="btn ghost sm" type="button" data-act="refresh">Vernieuwen</button></div>${cards||'<p class="muted">Nog geen deelnemers. Maak hierboven de eerste uitnodiging.</p>'}</section>${mediaAdminHtml()}</div>`}
+  <details class="sec"><summary class="sechead" style="cursor:pointer"><h2 style="display:inline">${ps.length} ${ps.length===1?'deelnemer':'deelnemers'}</h2><span class="muted">Tik om open of dicht te klappen</span></summary><div class="sec" style="margin-top:16px"><div><button class="btn ghost sm" type="button" data-act="refresh">Vernieuwen</button></div>${cards||'<p class="muted">Nog geen deelnemers. Maak hierboven de eerste uitnodiging.</p>'}</div></details>${mediaAdminHtml()}</div>`}
 async function adminAction(a){
   const act=a.dataset.act,id=a.dataset.id;
   try{
