@@ -1,4 +1,9 @@
 """Privé-bestanden (PDF's uit Canva): opgeslagen in de database, alleen zichtbaar na inloggen."""
+import ipaddress
+import socket
+import urllib.request
+from urllib.parse import urlparse
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 
@@ -69,6 +74,10 @@ async def upload(key: str, request: Request):
         raise HTTPException(413, "Het bestand is te groot (maximaal 40 MB).")
     if not data.startswith(b"%PDF"):
         raise HTTPException(422, "Dit is geen PDF-bestand.")
+    return {"file": _store(key, data)}
+
+
+def _store(key: str, data: bytes) -> dict:
     db = get_db()
     old = db.files.find_one({"_id": key})
     ver = utcnow().isoformat()
@@ -80,7 +89,55 @@ async def upload(key: str, request: Request):
         upsert=True,
     )
     db.file_chunks.delete_many({"file": key, "ver": {"$ne": ver}})
-    return {"file": _out(db.files.find_one({"_id": key}))}
+    return _out(db.files.find_one({"_id": key}))
+
+
+def _public_https(url: str) -> None:
+    """Alleen https naar een openbaar adres (geen intern netwerk)."""
+    u = urlparse(url)
+    if u.scheme != "https" or not u.hostname:
+        raise HTTPException(422, "Gebruik een https-link.")
+    try:
+        infos = socket.getaddrinfo(u.hostname, u.port or 443, proto=socket.IPPROTO_TCP)
+    except OSError:
+        raise HTTPException(422, "Deze link is niet bereikbaar.")
+    if not infos or any(not ipaddress.ip_address(i[4][0]).is_global for i in infos):
+        raise HTTPException(422, "Deze link is niet toegestaan.")
+
+
+class _Redirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _public_https(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def fetch_pdf(url: str) -> bytes:
+    _public_https(url)
+    opener = urllib.request.build_opener(_Redirect)
+    req = urllib.request.Request(url, headers={"User-Agent": "90dayrun-import"})
+    try:
+        with opener.open(req, timeout=40) as r:
+            data = r.read(MAX_BYTES + 1)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(422, "Downloaden mislukt. Is de link nog geldig?")
+    if len(data) > MAX_BYTES:
+        raise HTTPException(413, "Het bestand is te groot (maximaal 40 MB).")
+    if not data.startswith(b"%PDF"):
+        raise HTTPException(422, "De link geeft geen PDF. Gebruik een directe downloadlink.")
+    return data
+
+
+class ImportItem(BaseModel):
+    key: str
+    url: str
+
+
+@admin.post("/import")
+def import_from_link(body: ImportItem):
+    _slot(body.key)
+    return {"file": _store(body.key, fetch_pdf(body.url.strip()))}
 
 
 class Patch(BaseModel):
