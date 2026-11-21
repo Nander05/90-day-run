@@ -90,3 +90,16 @@ def test_import_pdf_from_link(fresh, monkeypatch):
     r = admin.post("/api/admin/files/import", json=body, headers=H)
     assert r.status_code == 200 and r.json()["file"]["visible"] is False
     assert admin.get("/api/files/cursusboek").content == PDF
+
+
+def test_toggle_whole_training(fresh):
+    admin = admin_client()
+    anna, _, _ = make_member(admin)
+    db = recordings.get_db()
+    for n, (t, o) in enumerate([(2, 1), (2, 2), (1, 1)]):
+        db.chapters.insert_one({"training": t, "order": o, "title": f"h{n}", "uid": UID, "visible": False})
+    assert anna.patch("/api/admin/recordings/training/2", json={"visible": True}, headers=H).status_code == 403
+    assert admin.patch("/api/admin/recordings/training/9", json={"visible": True}, headers=H).status_code == 404
+    assert admin.patch("/api/admin/recordings/training/2", json={"visible": True}, headers=H).json() == {"changed": 2}
+    seen = {(r["training"], r["order"]) for r in anna.get("/api/recordings").json()["recordings"]}
+    assert seen == {(2, 1), (2, 2)}
